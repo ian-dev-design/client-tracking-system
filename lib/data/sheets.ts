@@ -8,8 +8,13 @@ import { parseRawSurveyRows } from "./raw-survey";
 // Google Sheets adapter. Each tab = table, row 1 = headers. Columns are matched by
 // header name, so reordering columns in the Sheet is safe.
 
-const CACHE_MS = 15_000; // keeps us well under the Sheets read quota
-const cache = new Map<string, { at: number; values: string[][] }>();
+// Google allows 60 read requests per minute. A page needs ~14 tabs, so on a cache miss we fetch
+// every tab in ONE batch request, share it between requests running at the same time, and keep it
+// for 30s. Our own writes update or clear the cache, so only edits made directly in the Sheet wait.
+const CACHE_MS = 30_000;
+type Cached = { at: number; values: string[][] };
+const g = globalThis as unknown as { __sheetsCache?: Map<string, Cached>; __sheetsBatch?: Promise<void> | null };
+const cache = (g.__sheetsCache ??= new Map<string, Cached>()); // survives dev hot reloads
 
 function sheetId() {
   if (!config.spreadsheetId) throw new Error("spreadsheetId is empty in config.json");
@@ -24,9 +29,30 @@ function colLetter(index: number): string {
   return s;
 }
 
+async function fetchAllTabs(): Promise<void> {
+  const tabs = Object.keys(TABLES);
+  const res = await sheetsClient().spreadsheets.values.batchGet({
+    spreadsheetId: sheetId(),
+    ranges: tabs,
+    valueRenderOption: "FORMATTED_VALUE",
+  });
+  const at = Date.now();
+  (res.data.valueRanges || []).forEach((vr, i) => cache.set(tabs[i], { at, values: (vr.values as string[][]) || [] }));
+}
+
 async function readTab(tab: string): Promise<string[][]> {
   const hit = cache.get(tab);
   if (hit && Date.now() - hit.at < CACHE_MS) return hit.values;
+  if (tab in TABLES) {
+    try {
+      g.__sheetsBatch ??= fetchAllTabs().finally(() => (g.__sheetsBatch = null));
+      await g.__sheetsBatch;
+      const fresh = cache.get(tab);
+      if (fresh) return fresh.values;
+    } catch {
+      // e.g. a tab doesn't exist yet (before setup-sheet): fall back to reading just this one
+    }
+  }
   const res = await sheetsClient().spreadsheets.values.get({
     spreadsheetId: sheetId(),
     range: tab,
@@ -89,14 +115,18 @@ export const sheetsStore: Store = {
   async insert(table, row) {
     const values = await readTab(table);
     const headers = (values[0] as string[]) || [...TABLES[table]];
+    const line = headers.map((h) => row[h] ?? "");
     await sheetsClient().spreadsheets.values.append({
       spreadsheetId: sheetId(),
       range: table,
       valueInputOption: "RAW",
       insertDataOption: "INSERT_ROWS",
-      requestBody: { values: [headers.map((h) => row[h] ?? "")] },
+      requestBody: { values: [line] },
     });
-    invalidate(table);
+    // Add the row to our cached copy instead of re-reading the whole tab (saves a read per insert,
+    // which keeps bulk work like imports under the Sheets per-minute read limit).
+    const hit = cache.get(table);
+    if (hit) hit.values = [...hit.values, line];
     return row;
   },
 

@@ -5,7 +5,7 @@ A small CRM: Google Sheet backend, Next.js web app for the team, Claude Code com
 ## Rules (always follow)
 - Do not deploy anywhere unless I explicitly ask.
 - Never use, enable, or sign up for anything that costs money without my explicit approval.
-- Never commit or push without my explicit approval.
+- Never commit or push. I commit and push myself in GitHub Desktop. Don't use the GitHub CLI (`gh`) unless you first explain why it's needed and I agree. Read-only git commands (status, diff, log) are fine.
 - Never send any email or message without a human clicking "Approve & send" in the web app. Commands only create drafts.
 - Every interaction gets logged, including who made it (`logged_by`) and the channel.
 - Every contact has an owner and a next_followup_date unless the stage is Churned / Lost or research_status is Done.

@@ -79,7 +79,7 @@ Tables        list <table>  |  get <table> <id>  |  upsert <table> <matchField> 
 Setup         setup-sheet                      create tabs, headers, default templates & guides
               refresh-defaults                 rewrite default templates & guides from config.json
               survey-script                    regenerate apps-script/create-crm.gs from config.json
-              seed-sample                      add the 6 fake contacts to an EMPTY Sheet
+              seed-sample                      add the 6 fake contacts (skips any already there)
               seed-demo                        reset local demo data
 JSON args can be inline, @file.json, or - (stdin). Backend: ${dataBackend()}.`;
 
@@ -188,12 +188,15 @@ async function main() {
     }
     case "seed-sample": {
       if (dataBackend() !== "sheets") return out("Use seed-demo for demo mode.");
-      if ((await store().list("contacts")).length) throw new Error("contacts tab isn't empty — refusing to add sample data.");
+      // Adds only the sample rows that aren't there yet (matched by their fixed ids, e.g. c_tom), so it's
+      // safe to re-run after an interruption and never duplicates or touches your own rows.
       const { tables } = buildSampleData();
+      let added = 0;
       for (const t of ["organizations", "contacts", "sites", "tasks", "interactions", "surveys", "interviews", "transcripts", "research_themes", "onboarding", "retention"] as TableName[]) {
-        for (const row of tables[t]) await store().insert(t, row);
+        const have = new Set((await store().list(t)).map((r) => r.id));
+        for (const row of tables[t]) if (!have.has(row.id)) { await store().insert(t, row); added++; }
       }
-      return out("Added 6 sample contacts (all fake, @example.com). Delete them from the Sheet when you're done.");
+      return out(`Added ${added} sample rows (6 fake contacts, @example.com). Delete them from the Sheet when you're done.`);
     }
     case "seed-demo": resetDemoData(); return out("Demo data reset to the 6 sample contacts.");
 

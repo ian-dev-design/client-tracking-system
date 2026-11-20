@@ -1,8 +1,8 @@
 {
-  "surveyLink": "[PASTE SURVEY LINK HERE]",
-  "formId": "",
-  "emailEntryId": "",
-  "spreadsheetId": "",
+  "surveyLink": "https://docs.google.com/forms/d/e/1FAIpQLSeozyYwDjhYeAtSC2F9fkEXvTgVYbkG8QS7U0fFJ0ZyhpAm0A/viewform",
+  "formId": "1qBdJqn1WhVQnqW6a8pdzbYVacO10TICaAkRZbHLXhH8",
+  "emailEntryId": "entry.734113140",
+  "spreadsheetId": "1VhobeVzrnuj-H0GTZU_d7jo53jEMred-tp_3AahnVI0",
   "followupDays": 4,
   "targetCustomer": {
     "companyName": "GoatOps",

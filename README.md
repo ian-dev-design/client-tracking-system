@@ -60,7 +60,7 @@ In `.env.local`, set `DATA_BACKEND=sheets`, then run:
 npm run crm -- setup-sheet
 ```
 
-This adds all tabs, headers, default email templates and interview guides. It never deletes anything. Optionally run `npm run crm -- seed-sample` to put the 6 fake contacts into the empty Sheet. Then restart `npm run dev` and sign in with Google.
+This adds all tabs, headers, default email templates and interview guides. It never deletes anything. Optionally run `npm run crm -- seed-sample` to add the 6 fake contacts (safe to re-run: it skips rows already there). Then restart `npm run dev` and sign in with Google.
 
 > Keep `EMAIL_TEST_REDIRECT=you@berkeley.edu` while testing. Every "Approve & send" then goes to you, with the real recipient shown in the subject. Remove that line only when you're ready to email real people.
 

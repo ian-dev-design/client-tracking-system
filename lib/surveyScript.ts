@@ -50,19 +50,40 @@ function createCrm() {
     if (sheets[i].getFormUrl()) { sheets[i].setName('survey_responses_raw'); break; }
   }
 
-  // Find the entry ID of the email question from a prefilled URL.
-  var prefilled = form.createResponse()
-    .withItemResponse(emailItem.asTextItem().createResponse('test@example.com'))
-    .toPrefilledUrl();
+  printConfig(form, ss.getId());
+}
+
+/**
+ * Prints the values to paste into config.json. Also usable on its own: if createCrm stopped partway,
+ * run finishCrm instead of createCrm, so nothing is created twice.
+ */
+function printConfig(form, spreadsheetId) {
+  // Find the email question; getItems returns generic items, so convert it with asTextItem().
+  var emailItem = form.getItems(FormApp.ItemType.TEXT).filter(function (it) {
+    return it.getTitle() === 'Your email (so we can match your answers)';
+  })[0].asTextItem();
+  var prefilled = form.createResponse().withItemResponse(emailItem.createResponse('test@example.com')).toPrefilledUrl();
   var entryId = (prefilled.match(/(entry\\.\\d+)=/) || [])[1] || '';
 
   Logger.log('=== Paste these into config.json ===');
   Logger.log('"surveyLink": "' + form.getPublishedUrl() + '",');
   Logger.log('"formId": "' + form.getId() + '",');
   Logger.log('"emailEntryId": "' + entryId + '",');
-  Logger.log('"spreadsheetId": "' + ss.getId() + '",');
-  Logger.log('Sheet: ' + ss.getUrl());
+  Logger.log('"spreadsheetId": "' + spreadsheetId + '",');
+  Logger.log('Sheet: ' + SpreadsheetApp.openById(spreadsheetId).getUrl());
   Logger.log('Edit form: ' + form.getEditUrl());
+}
+
+/** Finds the survey createCrm made (the newest form with this title) and prints its config values. */
+function finishCrm() {
+  var files = DriveApp.getFilesByName(FORM_TITLE), newest = null;
+  while (files.hasNext()) {
+    var f = files.next();
+    if (f.getMimeType() === MimeType.GOOGLE_FORMS && (!newest || f.getDateCreated() > newest.getDateCreated())) newest = f;
+  }
+  if (!newest) throw new Error('No survey named "' + FORM_TITLE + '" found. Run createCrm instead.');
+  var form = FormApp.openById(newest.getId());
+  printConfig(form, form.getDestinationId());
 }
 `;
 }
