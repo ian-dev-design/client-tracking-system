@@ -4,18 +4,24 @@ import { dashboardData } from "@/lib/dashboard";
 import { JOURNEY, journey } from "@/lib/journey";
 import { moneyShort } from "@/lib/target";
 import { Donut, StackedBar } from "@/components/charts";
-import { ContactActions } from "@/components/ContactActions";
-import { PersonCard } from "@/components/PersonCard";
 import { SyncNowButton } from "@/components/SurveySync";
 import { PageHeader, SectionHead } from "@/components/ui";
+
+// Urgency dot, standard traffic colors: red glows when overdue (faster once a week+ late),
+// yellow = due today / worth a look, pale yellow = ready for the next step, no rush.
+const URGENCY = {
+  critical: "text-urgent motion-safe:animate-glow-fast",
+  alert: "text-urgent motion-safe:animate-glow",
+  due: "text-warn",
+  ready: "text-warn-soft",
+} as const;
+const URGENCY_LABEL = { critical: "Overdue a week or more", alert: "Overdue", due: "Due", ready: "Ready" } as const;
 
 // Home base: a quick visual read of everything, what needs attention, and a link into every tab.
 export default async function Dashboard() {
   const d = dashboardData(await loadAll());
   const todayLabel = new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" });
-  const testRedirect = process.env.EMAIL_TEST_REDIRECT;
   const attention = d.needsAttention.slice(0, 8);
-  const perRow = Math.ceil(attention.length / Math.ceil(attention.length / 4)) || 1; // at most 4 per row, rows as even as possible
   // ", healthy" / ", 1 needs attention" / ", 1 at risk"
   const onboardingHealth = !d.onboardingCount ? "" : [
     d.health.red && `${d.health.red} at risk`,
@@ -53,54 +59,51 @@ export default async function Dashboard() {
         </Link>
       </p>
 
-      {/* Needs attention */}
-      <section className="mt-12">
-        <SectionHead title="Needs attention" href="/tasks" linkText="My tasks →" />
-        {d.needsAttention.length ? (
-          // Balanced rows (5 cards → 3 + 2, 6 → 3 + 3); cards in a row stretch to fill it and match heights.
-          <div className="flex flex-wrap gap-3">
-            {attention.map(({ c, stage, reasons }) => (
-              <div key={c.id} className="min-w-[240px]" style={{ flex: `1 1 calc(${100 / perRow}% - 0.75rem)` }}>
-              <PersonCard name={c.name} company={c.company} href={`/contacts/${c.id}`}
-                accent={stage ? journey(stage).border : "border-l-line"}
-                meta={<span key="meta">{c.stage || c.research_status}</span>}
-                tags={reasons}
-                footer={
-                  <div key="footer" className="mt-3 border-t border-line pt-3">
-                    <ContactActions contact={c} size="sm" show={["draft", "log", "view"]} testRedirect={testRedirect} />
-                  </div>
-                }
-              />
+      {/* Journey: one word per stage, each a door into that stage */}
+      <nav aria-label="Journey" className="mt-8 grid grid-cols-2 gap-3 lg:grid-cols-4">
+        {JOURNEY.map((j) => {
+          const n = d.journeyPeople[j.key].length;
+          return (
+            <Link key={j.key} href={j.href}
+              className={`group border border-l-[3px] border-line bg-white px-4 py-3 transition-colors hover:bg-surface ${j.border}`}>
+              <div className="flex items-center justify-between text-sm font-semibold text-ink">
+                {j.label}
+                <span className="text-faint group-hover:text-ink" aria-hidden>→</span>
               </div>
-            ))}
-          </div>
+              <div className="mt-1 flex items-baseline gap-1.5">
+                <span className="text-3xl font-bold tabular-nums tracking-tight">{n}</span>
+                <span className="text-sm text-muted">{n === 1 ? "person" : "people"}</span>
+              </div>
+            </Link>
+          );
+        })}
+      </nav>
+
+      {/* Needs attention: name + what to do in two words; the dot shows urgency */}
+      <section className="mt-12">
+        <SectionHead title={`Needs attention (${d.needsAttention.length})`} href="/tasks" linkText="My tasks →" />
+        {attention.length ? (
+          <ul className="grid gap-x-8 border-t border-line md:grid-cols-2">
+            {attention.map(({ c, reasons }) => {
+              const top = reasons[0];
+              return (
+                <li key={c.id} className="border-b border-line">
+                  <Link href={`/contacts/${c.id}`} title={reasons.map((r) => r.detail).join("\n")}
+                    className="group flex items-center gap-3 px-1 py-2.5 text-sm transition-colors hover:bg-surface">
+                    <span className={`h-2.5 w-2.5 shrink-0 rounded-full bg-current ${URGENCY[top.tone]}`}
+                      role="img" aria-label={URGENCY_LABEL[top.tone]} title={URGENCY_LABEL[top.tone]} />
+                    <span className="min-w-0 flex-1 truncate font-semibold text-ink">{c.name}</span>
+                    <span className="shrink-0 text-muted">
+                      {top.label}{reasons.length > 1 && <span className="text-faint"> +{reasons.length - 1}</span>}
+                    </span>
+                    <span className="text-faint group-hover:text-ink" aria-hidden>→</span>
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
         ) : <p className="muted">Nothing needs attention right now.</p>}
         {d.needsAttention.length > 8 && <Link href="/tasks" className="link mt-3 inline-block text-sm">{d.needsAttention.length - 8} more →</Link>}
-      </section>
-
-      {/* Journey row: a door into each stage */}
-      <section className="mt-14">
-        <SectionHead title="Journey" />
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          {JOURNEY.map((j) => {
-            const people = d.journeyPeople[j.key];
-            return (
-              <div key={j.key} className={`flex flex-col border border-l-[3px] border-line bg-white p-4 ${j.border}`}>
-                <div className="eyebrow">Step {j.n}</div>
-                <div className="mt-1 text-lg font-bold tracking-tight">{j.label}</div>
-                <div className="text-xs text-muted">{j.purpose}</div>
-                <ul className="mt-4 flex-1 space-y-1 text-sm">
-                  {people.slice(0, 3).map((c) => (
-                    <li key={c.id}><Link href={`/contacts/${c.id}`} className="hover:underline">{c.name}</Link></li>
-                  ))}
-                  {!people.length && <li className="text-faint">No one here yet</li>}
-                  {people.length > 3 && <li className="text-xs text-muted">and {people.length - 3} more</li>}
-                </ul>
-                <Link href={j.href} className="mt-4 text-sm font-medium text-forest hover:underline">Open →</Link>
-              </div>
-            );
-          })}
-        </div>
       </section>
 
       {/* Themes + recent activity */}

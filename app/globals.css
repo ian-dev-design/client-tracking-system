@@ -17,6 +17,9 @@
   --color-faint: #8f948e;   /* hints, axis labels */
   --color-forest: #1f3a2e;  /* primary: buttons, links, active, "ready" */
   --color-coral: #e8735a;   /* overdue / at risk */
+  --color-urgent: #dc2626;  /* urgency dot: overdue (standard red) */
+  --color-warn: #f2b01e;    /* urgency dot: due today / worth a look (standard yellow) */
+  --color-warn-soft: #f6d88a; /* urgency dot: ready, no rush */
 
   --color-sage: #9ab39a;    /* Research */
   --color-pine: #2f5d4a;    /* Outreach */
@@ -25,6 +28,19 @@
 
   --radius-xs: 2px;
   --radius-sm: 3px;
+
+  /* Glows use the element's text color (set text-urgent / text-forest alongside bg-current). */
+  --animate-glow: glow 1.8s ease-in-out infinite;        /* overdue dots */
+  --animate-glow-fast: glow 1s ease-in-out infinite;     /* a week+ overdue */
+  --animate-breathe: breathe 4s ease-in-out infinite;    /* the brand dot, barely there */
+  @keyframes glow {
+    0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, currentColor 0%, transparent); opacity: 1; }
+    50% { box-shadow: 0 0 6px 2px color-mix(in srgb, currentColor 60%, transparent); opacity: 0.75; }
+  }
+  @keyframes breathe {
+    0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, currentColor 0%, transparent); }
+    50% { box-shadow: 0 0 5px 1px color-mix(in srgb, currentColor 35%, transparent); }
+  }
 }
 
 body {

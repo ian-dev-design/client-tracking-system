@@ -12,7 +12,7 @@ import type { Slice } from "@/components/charts";
 
 const HEALTH = [{ key: "green" }, { key: "yellow" }, { key: "red" }];
 
-export type Attention = { c: Row; stage: JourneyKey | null; reasons: { label: string; tone: "alert" | "ready" | "due" }[] };
+export type Attention = { c: Row; stage: JourneyKey | null; reasons: { label: string; detail: string; tone: "critical" | "alert" | "ready" | "due" }[] };
 
 /** One sentence per interaction for the activity feed, e.g. "Ian sent outreach to Jordan Reyes". */
 function describe(i: Row, name: string): string {
@@ -59,24 +59,31 @@ export function dashboardData(data: AllData) {
 
   // Needs attention: one card per person, listing every reason
   const attention = new Map<string, Attention>();
-  const flag = (c: Row | undefined, label: string, tone: Attention["reasons"][number]["tone"] = "alert") => {
+  // label: two words for the dashboard row; detail: the full reason, shown on hover.
+  const flag = (c: Row | undefined, label: string, detail: string, tone: Attention["reasons"][number]["tone"] = "alert") => {
     if (!c) return;
     const a = attention.get(c.id) || { c, stage: journeyOfContact(c), reasons: [] };
-    a.reasons.push({ label, tone });
+    a.reasons.push({ label, detail, tone });
     attention.set(c.id, a);
   };
-  contacts.filter(isOverdue).forEach((c) => flag(c, `Follow-up overdue by ${daysSince(c.next_followup_date)}d`));
-  contacts.filter(isDueToday).forEach((c) => flag(c, "Follow-up due today", "due"));
-  contacts.filter((c) => readyForInterview(c, interviews)).forEach((c) => flag(c, "Ready for interview", "ready"));
+  contacts.filter(isOverdue).forEach((c) => {
+    const d = daysSince(c.next_followup_date);
+    flag(c, "Follow up", `Follow-up overdue by ${d} day${d === 1 ? "" : "s"}`, (d ?? 0) >= 7 ? "critical" : "alert");
+  });
+  contacts.filter(isDueToday).forEach((c) => flag(c, "Follow up", "Follow-up due today", "due"));
+  contacts.filter((c) => readyForInterview(c, interviews)).forEach((c) => flag(c, "Book interview", "Ready for interview", "ready"));
   tasks.filter((t) => !isTrue(t.done) && t.due_date && t.due_date < today())
-    .forEach((t) => flag(byId.get(t.contact_id), `Task overdue: ${t.title}`));
-  onboardingRows.filter((o) => o.blockers).forEach((o) => flag(byId.get(o.contact_id), `Blocked: ${o.blockers}`, "due"));
+    .forEach((t) => flag(byId.get(t.contact_id), "Overdue task", `Task overdue: ${t.title}`,
+      (daysSince(t.due_date) ?? 0) >= 7 ? "critical" : "alert"));
+  onboardingRows.filter((o) => o.blockers).forEach((o) => flag(byId.get(o.contact_id), "Unblock setup", `Blocked: ${o.blockers}`, "due"));
   contacts.filter((c) => c.stage === "Active / Retention").forEach((c) => {
     const d = daysSince(lastTouch(c.id, interactions));
-    if (d === null || d >= 30) flag(c, d === null ? "Never contacted" : `Quiet for ${d} days`, "due");
+    if (d === null || d >= 30) flag(c, "Check in", d === null ? "Never contacted" : `Quiet for ${d} days`, "due");
   });
-  const needsAttention = [...attention.values()]
-    .sort((a, b) => Number(b.reasons.some((r) => r.tone === "alert")) - Number(a.reasons.some((r) => r.tone === "alert")));
+  // Most urgent first: a week+ overdue (critical) → overdue (alert) → due → ready.
+  const rank = { critical: 0, alert: 1, due: 2, ready: 3 } as const;
+  attention.forEach((a) => a.reasons.sort((x, y) => rank[x.tone] - rank[y.tone]));
+  const needsAttention = [...attention.values()].sort((a, b) => rank[a.reasons[0].tone] - rank[b.reasons[0].tone]);
 
   // Top research themes, each with one short quote
   const topThemes = [...themes]

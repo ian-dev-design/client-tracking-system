@@ -3,11 +3,11 @@
 import Link from "next/link";
 import { journey, journeyOf, type JourneyKey } from "@/lib/journey";
 
-/** The product mark: a solid forest dot and the name. */
+/** The product mark: a forest dot with a slow, faint glow, and the name. */
 export function Brand({ className = "" }: { className?: string }) {
   return (
     <div className={`flex items-center gap-2.5 ${className}`}>
-      <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-forest" aria-hidden />
+      <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-current text-forest motion-safe:animate-breathe" aria-hidden />
       <span className="text-sm font-semibold tracking-[-0.01em] text-ink">Client Tracking System</span>
     </div>
   );
