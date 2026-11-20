@@ -4,7 +4,7 @@
 import { config } from "@/lib/config";
 import { store, ONBOARDING_STEPS, RETENTION_SIGNALS, type Row, type TableName } from "@/lib/data";
 import type { Step } from "@/lib/target";
-import { addDays, isTrue, newId, nowIso, today } from "@/lib/util";
+import { addDays, isTrue, newId, nowStamp, today } from "@/lib/util";
 
 export type Contact = Row;
 
@@ -12,7 +12,7 @@ const followupDate = () => addDays(today(), config.followupDays);
 
 export async function logActivity(user: string, action: string, table: TableName, recordId: string, details = "") {
   await store().insert("activity_log", {
-    id: newId("log"), at: nowIso(), user, action, table, record_id: recordId, details,
+    id: newId("log"), at: nowStamp(), user, action, table, record_id: recordId, details,
   });
 }
 
@@ -53,7 +53,7 @@ function withDefaults(c: Contact, actor: string): Contact {
 
 export async function createContact(input: Row, actor: string): Promise<Contact> {
   if (!input.name?.trim()) throw new Error("Name is required");
-  const now = nowIso();
+  const now = nowStamp();
   const contact = withDefaults(
     { ...(await linkOrganization(input, actor)), id: newId("c"), created_at: now, updated_at: now, updated_by: actor },
     actor,
@@ -71,7 +71,7 @@ export async function updateContact(id: string, patch: Row, actor: string): Prom
   const changes: Row = {};
   for (const k of Object.keys(next)) if (next[k] !== current[k]) changes[k] = next[k];
   if (!Object.keys(changes).length) return current;
-  changes.updated_at = nowIso();
+  changes.updated_at = nowStamp();
   changes.updated_by = actor;
   const saved = await store().update("contacts", id, changes);
   await logActivity(actor, "update", "contacts", id, Object.keys(changes).filter((k) => !k.startsWith("updated")).join(", "));
@@ -112,7 +112,7 @@ export async function logInteraction(input: Row, actor: string): Promise<Row> {
   const row: Row = {
     id: newId("int"), date: input.date || today(), type: input.type || "note", channel: input.channel || "other",
     summary: input.summary || "", email_subject: input.email_subject || "", email_body: input.email_body || "",
-    contact_id: input.contact_id, logged_by: actor, created_at: nowIso(),
+    contact_id: input.contact_id, logged_by: actor, created_at: nowStamp(),
   };
   await store().insert("interactions", row);
   await logActivity(actor, "log_interaction", "interactions", row.id, `${row.type} via ${row.channel}`);
@@ -144,7 +144,7 @@ export async function recordOutreachSent(
 // ---------- Drafts ----------
 
 export async function saveDraft(input: Row, actor: string): Promise<Row> {
-  const now = nowIso();
+  const now = nowStamp();
   const row: Row = {
     id: newId("d"), contact_id: input.contact_id, template: input.template || "",
     subject: input.subject || "", body: input.body || "", short_body: input.short_body || "",
@@ -156,7 +156,7 @@ export async function saveDraft(input: Row, actor: string): Promise<Row> {
 }
 
 export async function updateDraft(id: string, patch: Row, actor: string) {
-  const saved = await store().update("drafts", id, { ...patch, updated_at: nowIso() });
+  const saved = await store().update("drafts", id, { ...patch, updated_at: nowStamp() });
   await logActivity(actor, "update_draft", "drafts", id, Object.keys(patch).join(", "));
   return saved;
 }
@@ -176,7 +176,7 @@ async function toggleChecklist(table: "onboarding" | "retention", steps: Step[],
   const row = (await store().list(table)).find((r) => r.id === id);
   if (!row) throw new Error(`${table} row not found`);
   const on = !isTrue(row[key]);
-  const patch: Row = { [key]: on ? "TRUE" : "", [`${key}_date`]: on ? today() : "", updated_at: nowIso(), updated_by: actor };
+  const patch: Row = { [key]: on ? "TRUE" : "", [`${key}_date`]: on ? today() : "", updated_at: nowStamp(), updated_by: actor };
   if (table === "onboarding") patch.progress_pct = String(checklistProgress({ ...row, ...patch }, steps));
   await store().update(table, id, patch);
   await logActivity(actor, on ? "check" : "uncheck", table, id, key);
@@ -189,7 +189,7 @@ export const toggleRetentionSignal = (id: string, signal: string, actor: string)
   toggleChecklist("retention", RETENTION_SIGNALS, id, signal, actor);
 
 export async function updateOnboarding(id: string, patch: Row, actor: string) {
-  await store().update("onboarding", id, { ...patch, updated_at: nowIso(), updated_by: actor });
+  await store().update("onboarding", id, { ...patch, updated_at: nowStamp(), updated_by: actor });
   await logActivity(actor, "update", "onboarding", id, Object.keys(patch).join(", "));
 }
 
@@ -197,7 +197,7 @@ export async function updateOnboarding(id: string, patch: Row, actor: string) {
 export async function ensureOnboardingRow(contactId: string, actor: string): Promise<Row> {
   const existing = (await store().list("onboarding")).find((r) => r.contact_id === contactId);
   if (existing) return existing;
-  const now = nowIso();
+  const now = nowStamp();
   const row: Row = {
     id: newId("ob"), contact_id: contactId, start_date: today(), progress_pct: "0", health: "green",
     blockers: "", created_at: now, updated_at: now, updated_by: actor,
@@ -211,7 +211,7 @@ export async function ensureOnboardingRow(contactId: string, actor: string): Pro
 export async function ensureRetentionRow(contactId: string, actor: string): Promise<Row> {
   const existing = (await store().list("retention")).find((r) => r.contact_id === contactId);
   if (existing) return existing;
-  const now = nowIso();
+  const now = nowStamp();
   const row: Row = { id: newId("rt"), contact_id: contactId, active_since: today(), notes: "", created_at: now, updated_at: now, updated_by: actor };
   await store().insert("retention", row);
   await logActivity(actor, "create", "retention", row.id, contactId);
@@ -219,7 +219,7 @@ export async function ensureRetentionRow(contactId: string, actor: string): Prom
 }
 
 export async function updateRetention(id: string, patch: Row, actor: string) {
-  await store().update("retention", id, { ...patch, updated_at: nowIso(), updated_by: actor });
+  await store().update("retention", id, { ...patch, updated_at: nowStamp(), updated_by: actor });
   await logActivity(actor, "update", "retention", id, Object.keys(patch).join(", "));
 }
 
@@ -246,7 +246,7 @@ const sameName = (a: string, b: string) => a.trim().toLowerCase() === b.trim().t
 export async function ensureOrganization(name: string, actor: string, extra: Row = {}): Promise<Row> {
   const existing = (await store().list("organizations")).find((o) => sameName(o.name, name));
   if (existing) return existing;
-  const now = nowIso();
+  const now = nowStamp();
   const org: Row = { id: newId("org"), name: name.trim(), type: "", address: "", notes: "", ...extra, created_at: now, updated_at: now, updated_by: actor };
   await store().insert("organizations", org);
   await logActivity(actor, "create", "organizations", org.id, org.name);
@@ -270,7 +270,7 @@ async function linkOrganization(input: Row, actor: string): Promise<Row> {
 }
 
 export async function updateOrganization(id: string, patch: Row, actor: string) {
-  const saved = await store().update("organizations", id, { ...patch, updated_at: nowIso(), updated_by: actor });
+  const saved = await store().update("organizations", id, { ...patch, updated_at: nowStamp(), updated_by: actor });
   if (patch.name) {
     // keep each contact's display name in step with a renamed organization
     for (const c of (await store().list("contacts")).filter((x) => x.organization_id === id)) {
@@ -284,7 +284,7 @@ export async function updateOrganization(id: string, patch: Row, actor: string) 
 export async function addSite(input: Row, actor: string): Promise<Row> {
   if (!input.organization_id) throw new Error("A site needs an organization");
   if (!input.name?.trim()) throw new Error("Site name is required");
-  const now = nowIso();
+  const now = nowStamp();
   const site: Row = { ...input, id: newId("site"), status: input.status || "Prospect", created_at: now, updated_at: now, updated_by: actor };
   await store().insert("sites", site);
   await logActivity(actor, "create", "sites", site.id, site.name);
@@ -292,7 +292,7 @@ export async function addSite(input: Row, actor: string): Promise<Row> {
 }
 
 export async function updateSite(id: string, patch: Row, actor: string) {
-  const saved = await store().update("sites", id, { ...patch, updated_at: nowIso(), updated_by: actor });
+  const saved = await store().update("sites", id, { ...patch, updated_at: nowStamp(), updated_by: actor });
   await logActivity(actor, "update", "sites", id, Object.keys(patch).join(", "));
   return saved;
 }
@@ -301,7 +301,7 @@ export async function updateSite(id: string, patch: Row, actor: string) {
 
 export async function addTask(input: Row, actor: string): Promise<Row> {
   if (!input.title?.trim()) throw new Error("Task title is required");
-  const now = nowIso();
+  const now = nowStamp();
   const task: Row = {
     id: newId("task"), title: input.title.trim(), due_date: input.due_date || "", assigned_to: input.assigned_to || actor,
     contact_id: input.contact_id || "", done: "", done_at: "", created_by: actor, created_at: now, updated_at: now,
@@ -313,8 +313,8 @@ export async function addTask(input: Row, actor: string): Promise<Row> {
 
 /** Edit a task. `done: "TRUE"` / `""` checks it off or reopens it. */
 export async function updateTask(id: string, patch: Row, actor: string) {
-  const next: Row = { ...patch, updated_at: nowIso() };
-  if (patch.done !== undefined) next.done_at = isTrue(patch.done) ? nowIso() : "";
+  const next: Row = { ...patch, updated_at: nowStamp() };
+  if (patch.done !== undefined) next.done_at = isTrue(patch.done) ? nowStamp() : "";
   const saved = await store().update("tasks", id, next);
   await logActivity(actor, patch.done !== undefined ? (isTrue(patch.done) ? "check" : "uncheck") : "update", "tasks", id, Object.keys(patch).join(", "));
   return saved;
@@ -327,7 +327,7 @@ const PART_SIZE = 40_000; // stays under the Sheets 50,000-character cell limit
 /** Store an interview's transcript exactly as given (never edited), split into parts if it's long. */
 export async function saveTranscriptText(interviewId: string, text: string, actor: string) {
   if (!text.trim()) return;
-  const now = nowIso();
+  const now = nowStamp();
   for (let i = 0, part = 1; i < text.length; i += PART_SIZE, part++) {
     await store().insert("transcripts", { id: newId("tr"), interview_id: interviewId, part: String(part), text: text.slice(i, i + PART_SIZE), created_at: now });
   }
@@ -343,7 +343,7 @@ export function transcriptFor(interviewId: string, transcripts: Row[]): string {
 // ---------- Interviews ----------
 
 export async function addInterview(input: Row, actor: string): Promise<Row> {
-  const now = nowIso();
+  const now = nowStamp();
   const row: Row = {
     ...input, id: newId("iv"), extraction_status: input.extraction_status || "pending",
     created_at: now, updated_at: now, updated_by: actor,
@@ -358,7 +358,7 @@ export async function addInterview(input: Row, actor: string): Promise<Row> {
 }
 
 export async function updateInterview(id: string, patch: Row, actor: string) {
-  await store().update("interviews", id, { ...patch, updated_at: nowIso(), updated_by: actor });
+  await store().update("interviews", id, { ...patch, updated_at: nowStamp(), updated_by: actor });
   await logActivity(actor, "update", "interviews", id, Object.keys(patch).join(", "));
 }
 

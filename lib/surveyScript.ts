@@ -25,7 +25,6 @@ function createCrm() {
 
   var form = FormApp.create(FORM_TITLE);
   form.setDescription('Takes about 3 minutes. Your answers help us understand how organizations like yours work. Thank you!');
-  form.setCollectEmail(true);           // Google's own "Email" field
   form.setProgressBar(true);
   form.setConfirmationMessage('Thank you! We really appreciate it.');
 

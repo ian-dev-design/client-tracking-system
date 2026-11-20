@@ -1,6 +1,6 @@
 import { config } from "@/lib/config";
 import { sheetsClient } from "@/lib/google";
-import { newId, nowIso } from "@/lib/util";
+import { newId, nowStamp, stamp } from "@/lib/util";
 import { RAW_SURVEY_TAB, TABLES, type Row, type TableName } from "./schema";
 import type { RawSurveyResponse, Store } from "./types";
 import { parseRawSurveyRows } from "./raw-survey";
@@ -98,7 +98,7 @@ export const sheetsStore: Store = {
         fixes.push({ range: `${table}!${colLetter(idCol)}${sheetRow}`, values: [[row.id]] });
       }
       if (createdCol >= 0 && !row.created_at) {
-        row.created_at = nowIso();
+        row.created_at = nowStamp();
         fixes.push({ range: `${table}!${colLetter(createdCol)}${sheetRow}`, values: [[row.created_at]] });
       }
     });
@@ -193,4 +193,39 @@ export async function ensureTabs(): Promise<string[]> {
     }
   }
   return created;
+}
+
+/**
+ * One-time cleanup: rewrites old ISO timestamps (2026-11-20T21:05:56.764Z) in the timestamp columns
+ * as "YYYY-MM-DD HH:MM". Only those cells are touched. Safe to re-run. Returns how many cells changed.
+ */
+export async function reformatTimestamps(): Promise<number> {
+  const ISO = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/;
+  const data: { range: string; values: string[][] }[] = [];
+  let changed = 0;
+  cache.clear();
+  for (const table of Object.keys(TABLES)) {
+    const values = await readTab(table);
+    const headers = (values[0] || []).map(String);
+    for (const col of ["at", "created_at", "updated_at", "done_at"]) {
+      const i = headers.indexOf(col);
+      if (i < 0 || values.length < 2) continue;
+      let any = false;
+      const column = values.slice(1).map((line) => {
+        const v = line[i] != null ? String(line[i]) : "";
+        if (!ISO.test(v) || isNaN(new Date(v).getTime())) return [v];
+        any = true; changed++;
+        return [stamp(new Date(v))];
+      });
+      if (any) data.push({ range: `${table}!${colLetter(i)}2:${colLetter(i)}${values.length}`, values: column });
+    }
+  }
+  if (data.length) {
+    await sheetsClient().spreadsheets.values.batchUpdate({
+      spreadsheetId: sheetId(),
+      requestBody: { valueInputOption: "RAW", data },
+    });
+  }
+  cache.clear();
+  return changed;
 }

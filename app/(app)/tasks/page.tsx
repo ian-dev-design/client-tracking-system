@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { currentUser } from "@/lib/auth";
 import { loadAll } from "@/lib/crm";
-import { formatDate, isTrue } from "@/lib/util";
+import { formatDate, isTrue, stamp } from "@/lib/util";
 import { assignees, isDueToday, isOverdue, params, sortTasks } from "@/lib/views";
 import { ContactActions } from "@/components/ContactActions";
 import { TaskList } from "@/components/TaskList";
@@ -15,7 +15,7 @@ export default async function MyTasks({ searchParams }: { searchParams: Promise<
   const names = new Map(contacts.map((c) => [c.id, c.name]));
 
   // Tasks: open ones, plus anything finished in the last week so a mis-click is easy to undo.
-  const weekAgo = new Date(Date.now() - 7 * 86400000).toISOString();
+  const weekAgo = stamp(new Date(Date.now() - 7 * 86400000));
   const shown = sortTasks(tasks.filter((t) => (everyone || t.assigned_to === me) && (!isTrue(t.done) || t.done_at >= weekAgo)))
     .map((t): Record<string, string> => ({ ...t, contact_name: names.get(t.contact_id) || "" }));
 

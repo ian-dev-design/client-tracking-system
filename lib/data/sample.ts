@@ -22,7 +22,7 @@ import type { Row, TableName } from "./schema";
 export function buildSampleData(): { tables: Record<TableName, Row[]>; raw: string[][] } {
   const t = today();
   const d = (n: number) => addDays(t, n);
-  const ts = (n: number) => `${d(n)}T15:00:00.000Z`;
+  const ts = (n: number) => `${d(n)} 08:00`;
   const base = (n: number) => ({ created_at: ts(n), updated_at: ts(n), updated_by: "Ian" });
   const contact = (c: Row): Row => ({ phone: "", linkedin: "", lost_reason: "", research_status: "", stage: "", ...c });
 

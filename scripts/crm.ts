@@ -15,7 +15,7 @@ import { buildDraft } from "@/lib/outreach";
 import { syncSurveys, listUnmatched } from "@/lib/surveys";
 import { extractText, googleDocId, readGoogleDoc, stripCaptions } from "@/lib/transcripts";
 import { isDueToday, isOverdue } from "@/lib/views";
-import { nowIso, today } from "@/lib/util";
+import { nowStamp, today } from "@/lib/util";
 
 const actor = `${process.env.OWNER_NAME || process.env.DEMO_USER_NAME || "Owner"} (Claude Code)`;
 const out = (v: unknown) => console.log(typeof v === "string" ? v : JSON.stringify(v, null, 2));
@@ -80,6 +80,7 @@ Setup         setup-sheet                      create tabs, headers, default tem
               refresh-defaults                 rewrite default templates & guides from config.json
               survey-script                    regenerate apps-script/create-crm.gs from config.json
               seed-sample                      add the 6 fake contacts (skips any already there)
+              format-timestamps                rewrite old ISO timestamps in the Sheet as "YYYY-MM-DD HH:MM"
               seed-demo                        reset local demo data
 JSON args can be inline, @file.json, or - (stdin). Backend: ${dataBackend()}.`;
 
@@ -139,7 +140,7 @@ async function main() {
     case "update-survey": {
       const patch = json(b);
       delete patch.responses; // never edit the original answers
-      return out(await store().update("surveys", a, { ...patch, updated_at: nowIso(), updated_by: actor }));
+      return out(await store().update("surveys", a, { ...patch, updated_at: nowStamp(), updated_by: actor }));
     }
 
     case "attach-transcript": {
@@ -185,6 +186,11 @@ async function main() {
     case "survey-script": {
       fs.writeFileSync("apps-script/create-crm.gs", buildSurveyScript());
       return out("Wrote apps-script/create-crm.gs from config.json. Paste it into script.google.com to create the Form.");
+    }
+    case "format-timestamps": {
+      if (dataBackend() !== "sheets") return out("Only needed for the Google Sheet.");
+      const { reformatTimestamps } = await import("@/lib/data/sheets");
+      return out(`Reformatted ${await reformatTimestamps()} timestamps to "YYYY-MM-DD HH:MM".`);
     }
     case "seed-sample": {
       if (dataBackend() !== "sheets") return out("Use seed-demo for demo mode.");

@@ -3,7 +3,7 @@
 import { aiSurveyTakeaways } from "@/lib/ai";
 import { createContact, getContact, isProspect, isResearch, logInteraction, updateContact, logActivity } from "@/lib/crm";
 import { store, type RawSurveyResponse, type Row } from "@/lib/data";
-import { newId, normEmail, nowIso, today } from "@/lib/util";
+import { newId, normEmail, nowStamp, today } from "@/lib/util";
 
 const formatAnswers = (r: RawSurveyResponse) => r.answers.map((a) => `${a.question}\n→ ${a.answer}`).join("\n\n");
 
@@ -23,7 +23,7 @@ async function record(r: RawSurveyResponse, contact: Row, interactions: Row[], a
   const sent = interactions
     .filter((i) => i.contact_id === contact.id && (i.type === "email" || i.type === "text"))
     .map((i) => i.date).sort().pop() || "";
-  const now = nowIso();
+  const now = nowStamp();
   const completed = (r.timestamp || today()).slice(0, 10);
   const row: Row = {
     id: newId("sv"), contact_id: contact.id, date_sent: sent, date_completed: completed,

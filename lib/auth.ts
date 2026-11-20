@@ -15,7 +15,7 @@ export const isAllowed = (email?: string | null) => !!email && allowedEmails().i
 export const demoAuth = () =>
   !process.env.GOOGLE_CLIENT_ID && process.env.DATA_BACKEND !== "sheets" && !process.env.VERCEL;
 
-async function refreshAccessToken(refreshToken: string) {
+export async function refreshAccessToken(refreshToken: string) {
   const res = await fetch("https://oauth2.googleapis.com/token", {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -71,6 +71,22 @@ export const authOptions: NextAuthOptions = {
     },
   },
 };
+
+/**
+ * A working Gmail access token for this request. Google tokens expire after an hour, and the
+ * refreshed one isn't always saved back to the sign-in cookie, so refresh here when it's stale.
+ */
+export async function gmailAccessToken(token: Record<string, unknown> | null) {
+  if (!token) return undefined;
+  const expiresAt = Number(token.expiresAt) || 0;
+  if (token.accessToken && Date.now() / 1000 < expiresAt - 60) return token.accessToken as string;
+  if (!token.refreshToken) return undefined;
+  try {
+    return (await refreshAccessToken(token.refreshToken as string)).access_token;
+  } catch {
+    return undefined;
+  }
+}
 
 export type User = { name: string; email: string; demo: boolean };
 

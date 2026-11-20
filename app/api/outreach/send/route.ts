@@ -3,6 +3,7 @@ import type { NextRequest } from "next/server";
 import { getContact, recordOutreachSent } from "@/lib/crm";
 import { sendGmail } from "@/lib/gmail";
 import { withUser } from "@/lib/api";
+import { gmailAccessToken } from "@/lib/auth";
 
 // The ONLY code path that sends email. It runs only when a teammate clicks
 // "Approve & send" on a draft they reviewed. Sends from that teammate's own Gmail.
@@ -26,8 +27,8 @@ export const POST = withUser(async (req, user) => {
   }
 
   const token = await getToken({ req: req as NextRequest, secret: process.env.NEXTAUTH_SECRET });
-  const accessToken = token?.accessToken as string | undefined;
-  if (!accessToken) throw new Error("Your Gmail permission expired. Sign out and sign in again.");
+  const accessToken = await gmailAccessToken(token);
+  if (!accessToken) throw new Error("Your Gmail connection expired. Sign out (bottom of the sidebar) and sign in again, then retry.");
   await sendGmail({ accessToken, from: user.email, to, subject: finalSubject, body });
   await recordOutreachSent({ contactId, channel: "gmail", subject, body, draftId }, user.name);
   return { ok: true, to };
