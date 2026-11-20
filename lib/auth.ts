@@ -2,13 +2,12 @@ import type { NextAuthOptions } from "next-auth";
 import { getServerSession } from "next-auth";
 import GoogleProvider from "next-auth/providers/google";
 import { normEmail } from "@/lib/util";
+import { team, teamEmails } from "@/lib/team";
 
 // Google sign-in + allowlist. Signing in also grants permission to send email
 // from the teammate's own Gmail (gmail.send scope) — approved once at sign-in.
 
-export function allowedEmails(): string[] {
-  return (process.env.ALLOWED_EMAILS || "").split(",").map(normEmail).filter(Boolean);
-}
+export const allowedEmails = teamEmails;
 export const isAllowed = (email?: string | null) => !!email && allowedEmails().includes(normEmail(email));
 
 /** Demo mode: no Google sign-in configured, local only, demo data. Never active on Vercel. */
@@ -98,5 +97,7 @@ export async function currentUser(): Promise<User | null> {
   const session = await getServerSession(authOptions);
   const email = session?.user?.email;
   if (!email || !isAllowed(email)) return null; // removed from allowlist → locked out immediately
-  return { name: session.user?.name?.split(" ")[0] || email, email, demo: false };
+  // Your name comes from the team list, so it matches the names tasks and clients are assigned by.
+  const mate = team().find((t) => t.email === normEmail(email));
+  return { name: mate?.name || session.user?.name?.split(" ")[0] || email, email, demo: false };
 }

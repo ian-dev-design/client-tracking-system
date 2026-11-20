@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { currentUser } from "@/lib/auth";
 import { loadAll } from "@/lib/crm";
 import { listUnmatched } from "@/lib/surveys";
-import { isDueToday, isOverdue, tasksDue } from "@/lib/views";
+import { isDueToday, isMine, isOverdue, tasksDue } from "@/lib/views";
 import { Sidebar } from "@/components/Sidebar";
 import { SurveyAutoSync } from "@/components/SurveySync";
 
@@ -12,9 +12,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const user = await currentUser();
   if (!user) redirect("/sign-in");
   const [{ contacts, drafts, tasks }, unmatched] = await Promise.all([loadAll(), listUnmatched()]);
-  const mine = contacts.filter((c) => c.owner === user.name || c.owner === user.email);
+  const mine = contacts.filter((c) => isMine(c.owner, user));
   const counts = {
-    tasks: mine.filter((c) => isOverdue(c) || isDueToday(c)).length + tasksDue(tasks, user.name).length,
+    tasks: mine.filter((c) => isOverdue(c) || isDueToday(c)).length + tasksDue(tasks, user).length,
     drafts: drafts.filter((d) => d.status === "pending").length,
     unmatched: unmatched.length,
   };

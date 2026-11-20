@@ -1,17 +1,18 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { aiEnabled } from "@/lib/ai";
-import { isProspect, isResearch, loadAll } from "@/lib/crm";
+import { isProspect, isResearch, loadAll, ownershipHistory } from "@/lib/crm";
 import { PIPELINE_STAGES, RESEARCH_STATUSES } from "@/lib/data";
 import { money } from "@/lib/target";
 import { formatDate, splitList } from "@/lib/util";
-import { assignees, isOverdue, readyForInterview, sortTasks } from "@/lib/views";
+import { clientOptions, isOverdue, people, readyForInterview, sortTasks } from "@/lib/views";
 import { currentUser } from "@/lib/auth";
 import { ContactActions } from "@/components/ContactActions";
 import { ActionButton, MoveButton, StatusSelect } from "@/components/Widgets";
 import { PageHeader, Stars, TypeBadge } from "@/components/ui";
 import { SitesList } from "@/components/Sites";
 import { TaskList } from "@/components/TaskList";
+import { NewTaskButton } from "@/components/TaskForm";
 
 const DEAL_LABEL: Record<string, { text: string; cls: string }> = {
   won: { text: "Won", cls: "bg-forest text-paper" },
@@ -41,8 +42,13 @@ export default async function ContactPage({ params }: { params: Promise<{ id: st
   const orgSites = org ? sites.filter((x) => x.organization_id === org.id) : [];
   const myTasks = sortTasks(tasks.filter((t) => t.contact_id === id));
   const me = user?.name || "";
-  const timeline = interactions.filter((i) => i.contact_id === id)
-    .sort((a, b) => (b.date + b.created_at).localeCompare(a.date + a.created_at));
+  const team = people(me);
+  // Timeline: interactions plus reassignments / hand-offs of this client and their tasks.
+  const history = await ownershipHistory(id);
+  const timeline: Record<string, string>[] = [
+    ...interactions.filter((i) => i.contact_id === id).map((i) => ({ ...i, key: i.date + i.created_at, kind: "interaction" })),
+    ...history.map((h) => ({ ...h, key: h.at.slice(0, 10) + h.at, kind: "ownership" })),
+  ].sort((a, b) => b.key.localeCompare(a.key));
   const mySurveys = surveys.filter((s) => s.contact_id === id);
   const myInterviews = interviews.filter((i) => i.contact_id === id).sort((a, b) => b.date.localeCompare(a.date));
   const ob = onboarding.find((o) => o.contact_id === id);
@@ -126,9 +132,9 @@ export default async function ContactPage({ params }: { params: Promise<{ id: st
           <section className="card p-5">
             <div className="mb-3 flex items-baseline justify-between">
               <h2 className="h2">Tasks</h2>
-              <Link href="/tasks" className="text-xs font-medium text-forest hover:underline">My tasks →</Link>
+              <NewTaskButton small clients={clientOptions(contacts)} people={team} defaultAssignee={c.owner || me} contactId={c.id} />
             </div>
-            <TaskList tasks={myTasks} contactId={c.id} assignees={assignees(contacts, tasks, me)} me={me} empty="No tasks for this contact yet." />
+            <TaskList tasks={myTasks} clients={clientOptions(contacts)} people={team} me={me} empty="No tasks for this contact yet." />
           </section>
 
           {org && (
@@ -203,7 +209,13 @@ export default async function ContactPage({ params }: { params: Promise<{ id: st
             <h2 className="h2 mb-3">Timeline</h2>
             {timeline.length ? (
               <ol className="relative space-y-4 border-l border-line pl-5">
-                {timeline.map((i) => (
+                {timeline.map((i) => i.kind === "ownership" ? (
+                  <li key={i.id} className="relative">
+                    <span className="absolute top-1.5 -left-[23.5px] h-2 w-2 rounded-full bg-line ring-2 ring-white" aria-hidden />
+                    <div className="text-sm text-muted">{i.details}</div>
+                    <div className="text-xs text-faint">{formatDate(i.at)} · {i.action === "handoff" ? "hand-off" : "reassigned"}</div>
+                  </li>
+                ) : (
                   <li key={i.id} className="relative">
                     <span className={`absolute top-1.5 -left-[23.5px] h-2 w-2 rounded-full ring-2 ring-white ${i.type === "note" ? "bg-faint" : "bg-forest"}`} aria-hidden />
                     <div className="text-sm"><span className="font-medium">{i.summary || i.type}</span></div>

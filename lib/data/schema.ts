@@ -20,7 +20,7 @@ export const TABLES = {
     "id", "organization_id", "name", "address", "size", "notes", // size/notes labels come from config.json → sites
     "service_start", "service_end", "status", "created_at", "updated_at", "updated_by",
   ],
-  tasks: ["id", "title", "due_date", "assigned_to", "contact_id", "done", "done_at", "created_by", "created_at", "updated_at"],
+  tasks: ["id", "title", "due_date", "assigned_to", "contact_id", "done", "done_at", "created_by", "created_at", "updated_at", "notes"],
   // Full interview transcripts, word for word. Long ones are split into parts (a Sheet cell holds ~50k characters).
   transcripts: ["id", "interview_id", "part", "text", "created_at"],
   interactions: [

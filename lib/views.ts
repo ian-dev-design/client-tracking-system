@@ -3,6 +3,7 @@
 import type { Row } from "@/lib/data";
 import { isClosed, isProspect, isResearch } from "@/lib/crm";
 import { daysSince, isTrue, today } from "@/lib/util";
+import { isPerson, team } from "@/lib/team";
 
 export function lastTouch(contactId: string, interactions: Row[]): string {
   return interactions.filter((i) => i.contact_id === contactId).map((i) => i.date).sort().pop() || "";
@@ -65,10 +66,18 @@ export function boardCard(c: Row, interactions: Row[], interviews: Row[], drafts
   };
 }
 
-/** People a task can be assigned to: contact owners, past assignees, and you. */
-export function assignees(contacts: Row[], tasks: Row[], me: string): string[] {
-  return [...new Set([me, ...contacts.map((c) => c.owner), ...tasks.map((t) => t.assigned_to)].filter(Boolean))].sort();
+/** Teammate names work can be assigned to (everyone on ALLOWED_EMAILS; you, if the list is empty). */
+export function people(me: string): string[] {
+  const names = team().map((t) => t.name);
+  return names.length ? names : [me].filter(Boolean);
 }
+
+/** Every contact, for the client picker in the task form. */
+export const clientOptions = (contacts: Row[]) =>
+  contacts.map((c) => ({ id: c.id, name: c.name, company: c.company || "" })).sort((a, b) => a.name.localeCompare(b.name));
+
+/** Is this task / client yours? Matches your team name or email. */
+export const isMine = (value: string, user: { name: string; email: string }) => isPerson(value, user);
 
 /** Open tasks first (soonest due first, undated last), then done ones (most recent first). */
 export function sortTasks(tasks: Row[]): Row[] {
@@ -77,6 +86,6 @@ export function sortTasks(tasks: Row[]): Row[] {
   return [...open, ...done];
 }
 
-/** Open tasks assigned to `me` that are due today or earlier. */
-export const tasksDue = (tasks: Row[], me: string) =>
-  tasks.filter((t) => !isTrue(t.done) && t.assigned_to === me && t.due_date && t.due_date <= today());
+/** Open tasks assigned to you that are due today or earlier. */
+export const tasksDue = (tasks: Row[], user: { name: string; email: string }) =>
+  tasks.filter((t) => !isTrue(t.done) && isMine(t.assigned_to, user) && t.due_date && t.due_date <= today());

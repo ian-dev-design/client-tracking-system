@@ -5,6 +5,7 @@ import { config } from "@/lib/config";
 import { store, ONBOARDING_STEPS, RETENTION_SIGNALS, type Row, type TableName } from "@/lib/data";
 import type { Step } from "@/lib/target";
 import { addDays, isTrue, newId, nowStamp, today } from "@/lib/util";
+import { isPerson, team } from "@/lib/team";
 
 export type Contact = Row;
 
@@ -75,6 +76,9 @@ export async function updateContact(id: string, patch: Row, actor: string): Prom
   changes.updated_by = actor;
   const saved = await store().update("contacts", id, changes);
   await logActivity(actor, "update", "contacts", id, Object.keys(changes).filter((k) => !k.startsWith("updated")).join(", "));
+  if (changes.owner !== undefined) {
+    await logActivity(actor, "reassign", "contacts", id, `${actor} reassigned ${current.name} to ${changes.owner} (was ${current.owner || "no owner"})`);
+  }
   return saved;
 }
 
@@ -303,21 +307,73 @@ export async function addTask(input: Row, actor: string): Promise<Row> {
   if (!input.title?.trim()) throw new Error("Task title is required");
   const now = nowStamp();
   const task: Row = {
-    id: newId("task"), title: input.title.trim(), due_date: input.due_date || "", assigned_to: input.assigned_to || actor,
+    id: newId("task"), title: input.title.trim(), due_date: input.due_date || "",
+    // "" = Unassigned (chosen on purpose); left out entirely = the person creating it.
+    assigned_to: input.assigned_to ?? actor,
     contact_id: input.contact_id || "", done: "", done_at: "", created_by: actor, created_at: now, updated_at: now,
+    notes: input.notes || "",
   };
   await store().insert("tasks", task);
-  await logActivity(actor, "create", "tasks", task.id, `${task.title} → ${task.assigned_to}`);
+  await logActivity(actor, "create", "tasks", task.id, `${actor} added task “${task.title}” for ${task.assigned_to || "Unassigned"}`);
   return task;
 }
 
-/** Edit a task. `done: "TRUE"` / `""` checks it off or reopens it. */
+/** Edit a task. `done: "TRUE"` / `""` checks it off or reopens it. Reassigning is logged on its own. */
 export async function updateTask(id: string, patch: Row, actor: string) {
+  const current = (await store().list("tasks")).find((t) => t.id === id);
+  if (!current) throw new Error("Task not found");
   const next: Row = { ...patch, updated_at: nowStamp() };
   if (patch.done !== undefined) next.done_at = isTrue(patch.done) ? nowStamp() : "";
   const saved = await store().update("tasks", id, next);
-  await logActivity(actor, patch.done !== undefined ? (isTrue(patch.done) ? "check" : "uncheck") : "update", "tasks", id, Object.keys(patch).join(", "));
+  const reassigned = patch.assigned_to !== undefined && patch.assigned_to !== current.assigned_to;
+  if (reassigned) {
+    await logActivity(actor, "reassign", "tasks", id, `${actor} reassigned task “${current.title}” to ${patch.assigned_to || "Unassigned"}`);
+  }
+  const other = Object.keys(patch).filter((k) => k !== "assigned_to" || !reassigned);
+  if (other.length) {
+    await logActivity(actor, patch.done !== undefined ? (isTrue(patch.done) ? "check" : "uncheck") : "update", "tasks", id, other.join(", "));
+  }
   return saved;
+}
+
+/**
+ * Hand off work from one person to another: the given open tasks and/or owned clients.
+ * Each item is checked again here (it must still belong to `from`), moved, and logged.
+ * `from` / `to` are teammate names; "" means Unassigned (tasks only — every client keeps an owner).
+ */
+export async function handOff(input: { from: string; to: string; taskIds?: string[]; contactIds?: string[] }, actor: string) {
+  const { from, to } = input;
+  if (from === to) throw new Error("Pick two different people.");
+  // A stored value belongs to a person if it's their name, or their email when they're on the team list.
+  const same = (v: string, who: string) => {
+    if ((v || "").trim().toLowerCase() === who.trim().toLowerCase()) return true;
+    const mate = who && team().find((t) => t.name.toLowerCase() === who.trim().toLowerCase());
+    return !!mate && isPerson(v, mate);
+  };
+  const [tasks, contacts] = await Promise.all([store().list("tasks"), store().list("contacts")]);
+  const moveTasks = tasks.filter((t) => input.taskIds?.includes(t.id) && !isTrue(t.done) && same(t.assigned_to, from));
+  const moveClients = contacts.filter((c) => input.contactIds?.includes(c.id) && same(c.owner, from));
+  if (moveClients.length && !to) throw new Error("Clients need an owner. Pick a person to move them to.");
+  const label = (who: string) => who || "Unassigned";
+  for (const t of moveTasks) {
+    await store().update("tasks", t.id, { assigned_to: to, updated_at: nowStamp() });
+    await logActivity(actor, "handoff", "tasks", t.id, `${actor} handed off task “${t.title}” from ${label(from)} to ${label(to)}`);
+  }
+  for (const c of moveClients) {
+    await store().update("contacts", c.id, { owner: to, updated_at: nowStamp(), updated_by: actor });
+    await logActivity(actor, "handoff", "contacts", c.id, `${actor} handed off ${c.name} from ${label(from)} to ${label(to)}`);
+  }
+  return { tasks: moveTasks.length, clients: moveClients.length };
+}
+
+/** Reassignment and hand-off entries for one client: their own, plus those on their tasks. Newest first. */
+export async function ownershipHistory(contactId: string): Promise<Row[]> {
+  const [log, tasks] = await Promise.all([store().list("activity_log"), store().list("tasks")]);
+  const taskIds = new Set(tasks.filter((t) => t.contact_id === contactId).map((t) => t.id));
+  return log
+    .filter((l) => ["reassign", "handoff"].includes(l.action)
+      && ((l.table === "contacts" && l.record_id === contactId) || (l.table === "tasks" && taskIds.has(l.record_id))))
+    .sort((a, b) => b.at.localeCompare(a.at));
 }
 
 // ---------- Transcripts ----------

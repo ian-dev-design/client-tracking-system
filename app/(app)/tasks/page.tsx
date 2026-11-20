@@ -1,34 +1,63 @@
 import Link from "next/link";
 import { currentUser } from "@/lib/auth";
-import { loadAll } from "@/lib/crm";
-import { formatDate, isTrue, stamp } from "@/lib/util";
-import { assignees, isDueToday, isOverdue, params, sortTasks } from "@/lib/views";
-import { ContactActions } from "@/components/ContactActions";
-import { TaskList } from "@/components/TaskList";
-import { PageHeader, SectionHead, StageBadge } from "@/components/ui";
+import { isProspect, loadAll } from "@/lib/crm";
+import { journey, journeyOfContact } from "@/lib/journey";
+import { formatDate, isTrue, stamp, today } from "@/lib/util";
+import { clientOptions, isDueToday, isMine, isOverdue, params, people, readyForInterview } from "@/lib/views";
+import { FollowupCard, type FollowupAction } from "@/components/FollowupCard";
+import { NewTaskButton } from "@/components/TaskForm";
+import { TaskList, type TaskRow } from "@/components/TaskList";
+import { PageHeader, SectionHead } from "@/components/ui";
+
+/** The one next step that fits where someone is. */
+function actionFor(c: Record<string, string>, ready: boolean): FollowupAction {
+  if (ready) return "interview";
+  if (c.stage === "Onboarding") return "checklist";
+  if (c.stage === "Active / Retention") return "checkin";
+  if (["Client Interview", "Qualified"].includes(c.stage) || (!isProspect(c) && ["Interview Scheduled", "Interviewed"].includes(c.research_status))) return "log";
+  return "draft";
+}
 
 export default async function MyTasks({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const f = params(await searchParams);
-  const [user, { contacts, tasks }] = await Promise.all([currentUser(), loadAll()]);
+  const [user, { contacts, tasks, interviews }] = await Promise.all([currentUser(), loadAll()]);
   const me = user?.name || "";
   const everyone = f.who === "all";
+  const mineOnly = (value: string) => everyone || (!!user && isMine(value, user));
   const names = new Map(contacts.map((c) => [c.id, c.name]));
+  const team = people(me);
+  const clients = clientOptions(contacts);
+  const now = today();
 
-  // Tasks: open ones, plus anything finished in the last week so a mis-click is easy to undo.
+  const withName = (t: Record<string, string>): TaskRow => ({ ...t, contact_name: names.get(t.contact_id) || "" });
+  const byDue = (a: Record<string, string>, b: Record<string, string>) => (a.due_date || "9999").localeCompare(b.due_date || "9999");
+  const open = tasks.filter((t) => mineOnly(t.assigned_to) && !isTrue(t.done)).sort(byDue).map(withName);
+  const overdue = open.filter((t) => t.due_date && t.due_date < now);
+  const dueToday = open.filter((t) => t.due_date === now);
+  const upcoming = open.filter((t) => !t.due_date || t.due_date > now);
+  // Finished in the last week, so a mis-click is easy to undo.
   const weekAgo = stamp(new Date(Date.now() - 7 * 86400000));
-  const shown = sortTasks(tasks.filter((t) => (everyone || t.assigned_to === me) && (!isTrue(t.done) || t.done_at >= weekAgo)))
-    .map((t): Record<string, string> => ({ ...t, contact_name: names.get(t.contact_id) || "" }));
+  const done = tasks.filter((t) => mineOnly(t.assigned_to) && isTrue(t.done) && t.done_at >= weekAgo)
+    .sort((a, b) => b.done_at.localeCompare(a.done_at)).map(withName);
 
-  // Follow-ups: the next_followup_date on contacts you own.
-  const mine = contacts.filter((c) => everyone || c.owner === me || c.owner === user?.email);
-  const followups = mine.filter((c) => isOverdue(c) || isDueToday(c)).sort((a, b) => a.next_followup_date.localeCompare(b.next_followup_date));
+  const followups = contacts.filter((c) => mineOnly(c.owner) && (isOverdue(c) || isDueToday(c)))
+    .sort((a, b) => a.next_followup_date.localeCompare(b.next_followup_date));
+
   const tab = (href: string, label: string, on: boolean) => (
     <Link href={href} className={`-mb-px border-b-2 py-2 text-sm ${on ? "border-forest font-semibold text-ink" : "border-transparent text-muted hover:text-ink"}`}>{label}</Link>
+  );
+  const group = (title: string, rows: TaskRow[], tone = "") => rows.length > 0 && (
+    <div className="mb-6">
+      <div className={`mb-1 text-xs font-semibold uppercase tracking-[0.08em] ${tone || "text-muted"}`}>{title} · {rows.length}</div>
+      <TaskList tasks={rows} clients={clients} people={team} me={me} showContact />
+    </div>
   );
 
   return (
     <>
-      <PageHeader title="My tasks" subtitle="Your to-dos and the follow-ups that are due. Check things off as you go." />
+      <PageHeader title="My tasks" subtitle="Your to-dos and the follow-ups that are due.">
+        <NewTaskButton clients={clients} people={team} defaultAssignee={me} />
+      </PageHeader>
       <div className="mb-8 flex gap-6 border-b border-line">
         {tab("/tasks", "Mine", !everyone)}
         {tab("/tasks?who=all", "Everyone", everyone)}
@@ -36,31 +65,35 @@ export default async function MyTasks({ searchParams }: { searchParams: Promise<
 
       <div className="grid gap-12 lg:grid-cols-5">
         <section className="lg:col-span-3">
-          <SectionHead title={`Tasks (${shown.filter((t) => !isTrue(t.done)).length} open)`} />
-          <TaskList tasks={shown} assignees={assignees(contacts, tasks, me)} me={me} showContact
-            empty={everyone ? "No open tasks." : "Nothing assigned to you. Add one below, or from a contact's profile."} />
+          <SectionHead title={`Tasks (${open.length} open)`} />
+          {open.length ? <>
+            {group("Overdue", overdue, "text-coral")}
+            {group("Today", dueToday, "text-ink")}
+            {group("Upcoming", upcoming)}
+          </> : <p className="muted">{everyone ? "No open tasks." : "Nothing assigned to you. Use + New task to add one."}</p>}
+          {done.length > 0 && (
+            <details className="mt-2">
+              <summary className="cursor-pointer text-xs font-semibold uppercase tracking-[0.08em] text-muted hover:text-ink">Completed this week · {done.length}</summary>
+              <div className="mt-2"><TaskList tasks={done} clients={clients} people={team} me={me} showContact /></div>
+            </details>
+          )}
         </section>
 
         <section className="lg:col-span-2">
           <SectionHead title={`Follow-ups due (${followups.length})`} />
           {followups.length ? (
-            <ul className="divide-y divide-line border-y border-line">
-              {followups.map((c) => (
-                <li key={c.id} className="py-3">
-                  <div className="flex items-baseline justify-between gap-3">
-                    <Link href={`/contacts/${c.id}`} className="truncate font-semibold hover:underline">{c.name}</Link>
-                    <span className={`shrink-0 text-xs ${isOverdue(c) ? "font-semibold text-coral" : "text-ink"}`}>
-                      {isOverdue(c) ? `Overdue · ${formatDate(c.next_followup_date)}` : "Today"}
-                    </span>
-                  </div>
-                  <div className="mt-0.5 flex items-center gap-3 text-xs text-muted">
-                    <span className="truncate">{c.company}</span>
-                    <StageBadge value={c.stage || c.research_status} track={c.stage ? undefined : "research"} />
-                  </div>
-                  <div className="mt-2"><ContactActions contact={c} size="sm" show={["draft", "log", "view"]} testRedirect={process.env.EMAIL_TEST_REDIRECT} /></div>
-                </li>
-              ))}
-            </ul>
+            <div className="space-y-2">
+              {followups.map((c) => {
+                const late = isOverdue(c);
+                const stage = journeyOfContact(c);
+                return (
+                  <FollowupCard key={c.id} contact={c} company={c.company} overdue={late}
+                    reason={late ? `Follow-up overdue · ${formatDate(c.next_followup_date)}` : "Follow-up due today"}
+                    accent={stage ? journey(stage).border : "border-l-line"}
+                    action={actionFor(c, readyForInterview(c, interviews))} testRedirect={process.env.EMAIL_TEST_REDIRECT} />
+                );
+              })}
+            </div>
           ) : <p className="muted">No follow-ups due. Logging an interaction lets you set the next date.</p>}
         </section>
       </div>
