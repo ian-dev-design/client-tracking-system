@@ -59,3 +59,25 @@ export function journeyOf(value: string): JourneyKey | null {
 export function journeyOfContact(c: { stage?: string; research_status?: string }): JourneyKey | null {
   return journeyOf(c.stage || "") || (c.research_status && c.research_status !== "Done" ? "research" : null);
 }
+
+/** Mix two hex colors: t = 0 → a, t = 1 → b. */
+function mix(a: string, b: string, t: number): string {
+  const p = (h: string) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
+  const [x, y] = [p(a), p(b)];
+  return "#" + x.map((v, i) => Math.round(v + (y[i] - v) * t).toString(16).padStart(2, "0")).join("");
+}
+
+/**
+ * n shades of a stage color, light → dark, for a board's column headers (progress reads left to right).
+ * Each comes with a text color that stays readable on it.
+ */
+export function stageShades(hex: string, n: number): { bg: string; fg: string }[] {
+  return Array.from({ length: n }, (_, i) => {
+    const t = n === 1 ? 0.5 : i / (n - 1);
+    // light tint of the color → the color → a deeper version of it
+    const bg = t < 0.65 ? mix("#ffffff", hex, 0.22 + (t / 0.65) * 0.78) : mix(hex, "#141414", ((t - 0.65) / 0.35) * 0.35);
+    const [r, g, b] = [1, 3, 5].map((k) => parseInt(bg.slice(k, k + 2), 16) / 255).map((c) => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4));
+    const lum = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+    return { bg, fg: lum > 0.19 ? "#141414" : "#ffffff" }; // 0.19 ≈ where dark and white text have equal contrast
+  });
+}

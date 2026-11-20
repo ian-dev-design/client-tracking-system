@@ -78,7 +78,7 @@ function toRows(values: string[][]): { headers: string[]; rows: Row[] } {
 const PREFIX: Record<TableName, string> = {
   contacts: "c", interactions: "int", surveys: "sv", interviews: "iv", research_themes: "th",
   interview_guides: "g", email_templates: "t", onboarding: "ob", retention: "rt", drafts: "d", activity_log: "log",
-  organizations: "org", sites: "site", tasks: "task", transcripts: "tr",
+  organizations: "org", sites: "site", tasks: "task", transcripts: "tr", notifications: "n", notification_settings: "ns",
 };
 const prefixFor = (table: TableName) => PREFIX[table];
 
@@ -176,8 +176,8 @@ export async function ensureTabs(): Promise<string[]> {
     created.push(...toAdd);
   }
   // Add any missing header columns (never removes or reorders existing ones).
+  cache.clear(); // one fresh batch read covers every tab below
   for (const [table, cols] of Object.entries(TABLES)) {
-    invalidate(table);
     const values = await readTab(table);
     const headers = (values[0] || []).map(String);
     const missing = cols.filter((c) => !headers.includes(c));

@@ -34,17 +34,17 @@ export const demoStore: Store = {
   async list(table) {
     // Like a Sheet row: every column is present, blank ones as "".
     const blank = Object.fromEntries(TABLES[table].map((col) => [col, ""]));
-    return load().tables[table].map((r) => ({ ...blank, ...r }));
+    return (load().tables[table] || []).map((r) => ({ ...blank, ...r })); // tables added later start empty
   },
   async insert(table, row) {
     const db = load();
-    db.tables[table].push(row);
+    (db.tables[table] ||= []).push(row);
     save(db);
     return row;
   },
   async update(table, id, patch) {
     const db = load();
-    const i = db.tables[table].findIndex((r) => r.id === id);
+    const i = (db.tables[table] ||= []).findIndex((r) => r.id === id);
     if (i < 0) throw new Error(`${table}: no row with id ${id}`);
     db.tables[table][i] = { ...db.tables[table][i], ...patch };
     save(db);

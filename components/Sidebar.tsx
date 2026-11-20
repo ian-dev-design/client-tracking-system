@@ -5,10 +5,11 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { JOURNEY } from "@/lib/journey";
 import { Brand } from "./ui";
+import { Bell, type BellItem } from "./Bell";
 
 type Counts = { tasks: number; unmatched: number; drafts: number };
 
-export function Sidebar({ counts, userName, demo }: { counts: Counts; userName: string; demo: boolean }) {
+export function Sidebar({ counts, userName, demo, notifications }: { counts: Counts; userName: string; demo: boolean; notifications: BellItem[] }) {
   const path = usePathname();
   const [open, setOpen] = useState(false); // phone menu
   useEffect(() => setOpen(false), [path]); // close after navigating
@@ -27,8 +28,9 @@ export function Sidebar({ counts, userName, demo }: { counts: Counts; userName: 
   return (
     <aside className="sticky top-0 z-40 flex w-full flex-col border-b border-line bg-paper px-3 py-3 md:h-screen md:w-64 md:shrink-0 md:overflow-y-auto md:border-b-0 md:border-r md:py-6">
       <div className="flex items-center justify-between">
-        <Link href="/" className="px-3"><Brand /></Link>
-        <button className="btn btn-sm md:hidden" aria-expanded={open} aria-controls="main-nav" onClick={() => setOpen(!open)}>
+        <Link href="/" className="min-w-0 pl-3"><Brand /></Link>
+        <div className="ml-auto md:ml-0"><Bell items={notifications} /></div>
+        <button className="btn btn-sm ml-2 md:hidden" aria-expanded={open} aria-controls="main-nav" onClick={() => setOpen(!open)}>
           {open ? "Close" : `Menu${counts.tasks ? ` · ${counts.tasks}` : ""}`}
         </button>
       </div>
@@ -63,6 +65,7 @@ export function Sidebar({ counts, userName, demo }: { counts: Counts; userName: 
         {link("/organizations", "Organizations")}
         {link("/drafts", "Drafts to review", counts.drafts)}
         {link("/surveys/unmatched", "Unmatched surveys", counts.unmatched)}
+        {link("/settings/notifications", "Notifications")}
       </nav>
 
       <Link href="/contacts/new" className="btn btn-primary mx-3 mt-8">+ Add contact</Link>

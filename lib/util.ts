@@ -102,3 +102,7 @@ export function timeAgo(iso: string): string {
   if (mins < 60 * 24 * 7) return `${Math.round(mins / 1440)}d ago`;
   return formatDate(STAMP.test(iso) ? iso.slice(0, 10) : stamp(new Date(t)).slice(0, 10));
 }
+
+/** A task is urgent if it's marked Urgent, or automatically once it's 3+ days overdue. */
+export const isAutoUrgent = (t: Record<string, string>) => !isTrue(t.done) && !!t.due_date && (daysSince(t.due_date) ?? 0) >= 3;
+export const isUrgent = (t: Record<string, string>) => !isTrue(t.done) && (t.priority === "Urgent" || isAutoUrgent(t));

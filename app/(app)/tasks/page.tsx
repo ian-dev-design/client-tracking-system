@@ -1,22 +1,13 @@
 import Link from "next/link";
 import { currentUser } from "@/lib/auth";
-import { isProspect, loadAll } from "@/lib/crm";
+import { loadAll } from "@/lib/crm";
 import { journey, journeyOfContact } from "@/lib/journey";
 import { formatDate, isTrue, stamp, today } from "@/lib/util";
-import { clientOptions, isDueToday, isMine, isOverdue, params, people, readyForInterview } from "@/lib/views";
-import { FollowupCard, type FollowupAction } from "@/components/FollowupCard";
+import { actionFor, clientOptions, isDueToday, isMine, isOverdue, params, people, readyForInterview } from "@/lib/views";
+import { FollowupCard } from "@/components/FollowupCard";
 import { NewTaskButton } from "@/components/TaskForm";
 import { TaskList, type TaskRow } from "@/components/TaskList";
 import { PageHeader, SectionHead } from "@/components/ui";
-
-/** The one next step that fits where someone is. */
-function actionFor(c: Record<string, string>, ready: boolean): FollowupAction {
-  if (ready) return "interview";
-  if (c.stage === "Onboarding") return "checklist";
-  if (c.stage === "Active / Retention") return "checkin";
-  if (["Client Interview", "Qualified"].includes(c.stage) || (!isProspect(c) && ["Interview Scheduled", "Interviewed"].includes(c.research_status))) return "log";
-  return "draft";
-}
 
 export default async function MyTasks({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const f = params(await searchParams);

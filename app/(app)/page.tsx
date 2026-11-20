@@ -3,9 +3,11 @@ import { loadAll } from "@/lib/crm";
 import { dashboardData } from "@/lib/dashboard";
 import { JOURNEY, journey } from "@/lib/journey";
 import { moneyShort } from "@/lib/target";
+import { actionFor, readyForInterview } from "@/lib/views";
 import { Donut, StackedBar } from "@/components/charts";
+import { FollowupCard } from "@/components/FollowupCard";
 import { SyncNowButton } from "@/components/SurveySync";
-import { PageHeader, SectionHead } from "@/components/ui";
+import { SectionHead } from "@/components/ui";
 
 // Urgency dot, standard traffic colors: red glows when overdue (faster once a week+ late),
 // yellow = due today / worth a look, pale yellow = ready for the next step, no rush.
@@ -17,117 +19,125 @@ const URGENCY = {
 } as const;
 const URGENCY_LABEL = { critical: "Overdue a week or more", alert: "Overdue", due: "Due", ready: "Ready" } as const;
 
-// Home base: a quick visual read of everything, what needs attention, and a link into every tab.
+// Home base: what needs you first, then where everyone is, then the money, then research and activity.
 export default async function Dashboard() {
-  const d = dashboardData(await loadAll());
+  const data = await loadAll();
+  const d = dashboardData(data);
   const todayLabel = new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" });
-  const attention = d.needsAttention.slice(0, 8);
-  // ", healthy" / ", 1 needs attention" / ", 1 at risk"
+  const attention = d.needsAttention.slice(0, 6);
   const onboardingHealth = !d.onboardingCount ? "" : [
     d.health.red && `${d.health.red} at risk`,
     d.health.yellow && `${d.health.yellow} needs attention`,
   ].filter(Boolean).join(", ").replace(/^(.+)$/, ", $1") || ", healthy";
+  const pipeline = d.pipeline.filter((p) => p.value > 0); // no $0 stages
 
   return (
     <>
-      <PageHeader title="Dashboard" subtitle={todayLabel}>
+      {/* No big title: a small date label and the one page-level action */}
+      <div className="mb-8 flex items-center justify-between gap-4 border-b border-line pb-4">
+        <p className="text-sm text-muted">{todayLabel}</p>
         <SyncNowButton />
-      </PageHeader>
+      </div>
 
-      {/* Two visuals: the journey (hero) and the money */}
-      <div className="grid gap-x-14 gap-y-10 lg:grid-cols-2">
+      {/* 1. Needs attention: whole row opens the profile; one next step per person, most urgent first */}
+      <section>
+        <SectionHead title={`Needs attention (${d.needsAttention.length})`} href="/tasks" linkText="My tasks →" />
+        {attention.length ? (
+          <div className="grid gap-2 lg:grid-cols-2">
+            {attention.map(({ c, stage, reasons }) => {
+              const top = reasons[0];
+              return (
+                <FollowupCard key={c.id} contact={c} company={c.company}
+                  reason={top.detail + (reasons.length > 1 ? ` · +${reasons.length - 1} more` : "")}
+                  overdue={top.tone === "critical" || top.tone === "alert"}
+                  accent={stage ? journey(stage).border : "border-l-line"}
+                  action={actionFor(c, readyForInterview(c, data.interviews))} testRedirect={process.env.EMAIL_TEST_REDIRECT}
+                  urgency={<span key="dot" className={`h-2.5 w-2.5 shrink-0 rounded-full bg-current ${URGENCY[top.tone]}`} role="img"
+                    aria-label={URGENCY_LABEL[top.tone]} title={URGENCY_LABEL[top.tone]} />} />
+              );
+            })}
+          </div>
+        ) : <p className="muted">Nothing needs attention right now. <Link href="/contacts/new" className="link">+ Add a contact</Link></p>}
+        {d.needsAttention.length > attention.length && (
+          <Link href="/tasks" className="link mt-3 inline-block text-sm">{d.needsAttention.length - attention.length} more →</Link>
+        )}
+      </section>
+
+      <div className="mt-12 grid gap-x-14 gap-y-12 lg:grid-cols-2">
+        {/* 2. Journey: the donut and the four stages as one block of navigation */}
         <section>
-          <SectionHead title="Journey split" href="/contacts" linkText="All contacts →" />
-          <Donut data={d.journeySplit} caption={`${d.total} people`} size="lg" />
+          <SectionHead title="Journey" href="/contacts" linkText="All contacts →" />
+          <div className="flex flex-col gap-6 sm:flex-row sm:items-center">
+            <Donut data={d.journeySplit} caption={`${d.total} people`} showLegend={false} />
+            <ul className="min-w-0 flex-1 divide-y divide-line border-y border-line">
+              {JOURNEY.map((j) => {
+                const people = d.journeyPeople[j.key];
+                return (
+                  <li key={j.key} className={`border-l-[3px] ${j.border}`}>
+                    <div className="flex items-baseline justify-between gap-3 px-3 pt-2">
+                      <Link href={j.href} className="text-sm font-semibold text-ink hover:underline">{j.label}</Link>
+                      <span className="text-sm tabular-nums text-muted">{people.length}</span>
+                    </div>
+                    <div className="truncate px-3 pb-2 text-xs text-muted">
+                      {people.length ? people.slice(0, 3).map((c, i) => (
+                        <span key={c.id}>{i > 0 && ", "}<Link href={`/contacts/${c.id}`} className="hover:text-ink hover:underline">{c.name}</Link></span>
+                      )) : <span className="text-faint">No one here yet</span>}
+                      {people.length > 3 && <span className="text-faint"> +{people.length - 3}</span>}
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+          <p className="mt-4 flex flex-wrap gap-x-3 text-sm text-muted">
+            <Link href="/research/participants" className="hover:text-ink hover:underline">
+              <span className="font-semibold text-ink">{d.respondedCount} of {d.reachedCount}</span> surveys back
+            </Link>
+            <span aria-hidden>·</span>
+            <Link href="/onboarding" className="hover:text-ink hover:underline">
+              <span className="font-semibold text-ink">{d.onboardingCount}</span> onboarding{onboardingHealth}
+            </Link>
+          </p>
         </section>
+
+        {/* 3. Pipeline: one line and one thin bar */}
         <section>
-          <SectionHead title="Pipeline value" href="/board" linkText="Outreach →" />
-          <div className="text-5xl font-bold tracking-[-0.03em] tabular-nums">{moneyShort(d.pipelineTotal)} <span className="text-2xl font-semibold text-muted">open</span></div>
-          <div className="mt-1 text-sm text-muted">{moneyShort(d.wonTotal)} won</div>
-          <div className="mt-8"><StackedBar data={d.pipeline} format={moneyShort} /></div>
+          <SectionHead title="Pipeline" href="/board" linkText="Outreach →" />
+          <p className="text-2xl font-medium tracking-tight tabular-nums">
+            {moneyShort(d.pipelineTotal)} <span className="text-base font-normal text-muted">open</span>
+            <span className="mx-2 text-faint">·</span>
+            {moneyShort(d.wonTotal)} <span className="text-base font-normal text-muted">won</span>
+          </p>
+          <div className="mt-5">
+            {pipeline.length ? <StackedBar data={pipeline} format={moneyShort} />
+              : <p className="muted">No deal values yet. Add one from a contact&apos;s <b>Edit deal</b>.</p>}
+          </div>
         </section>
       </div>
 
-      {/* Slim stat line */}
-      <p className="mt-10 flex flex-wrap gap-x-3 gap-y-1 border-y border-line py-3 text-sm text-muted">
-        <Link href="/research/participants" className="hover:text-ink hover:underline">
-          <span className="font-semibold text-ink">{d.respondedCount} of {d.reachedCount}</span> surveys back
-        </Link>
-        <span aria-hidden>·</span>
-        <Link href="/onboarding" className="hover:text-ink hover:underline">
-          <span className="font-semibold text-ink">{d.onboardingCount}</span> onboarding{onboardingHealth}
-        </Link>
-      </p>
-
-      {/* Journey: one word per stage, each a door into that stage */}
-      <nav aria-label="Journey" className="mt-8 grid grid-cols-2 gap-3 lg:grid-cols-4">
-        {JOURNEY.map((j) => {
-          const n = d.journeyPeople[j.key].length;
-          return (
-            <Link key={j.key} href={j.href}
-              className={`group border border-l-[3px] border-line bg-white px-4 py-3 transition-colors hover:bg-surface ${j.border}`}>
-              <div className="flex items-center justify-between text-sm font-semibold text-ink">
-                {j.label}
-                <span className="text-faint group-hover:text-ink" aria-hidden>→</span>
-              </div>
-              <div className="mt-1 flex items-baseline gap-1.5">
-                <span className="text-3xl font-bold tabular-nums tracking-tight">{n}</span>
-                <span className="text-sm text-muted">{n === 1 ? "person" : "people"}</span>
-              </div>
-            </Link>
-          );
-        })}
-      </nav>
-
-      {/* Needs attention: name + what to do in two words; the dot shows urgency */}
-      <section className="mt-12">
-        <SectionHead title={`Needs attention (${d.needsAttention.length})`} href="/tasks" linkText="My tasks →" />
-        {attention.length ? (
-          <ul className="grid gap-x-8 border-t border-line md:grid-cols-2">
-            {attention.map(({ c, reasons }) => {
-              const top = reasons[0];
-              return (
-                <li key={c.id} className="border-b border-line">
-                  <Link href={`/contacts/${c.id}`} title={reasons.map((r) => r.detail).join("\n")}
-                    className="group flex items-center gap-3 px-1 py-2.5 text-sm transition-colors hover:bg-surface">
-                    <span className={`h-2.5 w-2.5 shrink-0 rounded-full bg-current ${URGENCY[top.tone]}`}
-                      role="img" aria-label={URGENCY_LABEL[top.tone]} title={URGENCY_LABEL[top.tone]} />
-                    <span className="min-w-0 flex-1 truncate font-semibold text-ink">{c.name}</span>
-                    <span className="shrink-0 text-muted">
-                      {top.label}{reasons.length > 1 && <span className="text-faint"> +{reasons.length - 1}</span>}
-                    </span>
-                    <span className="text-faint group-hover:text-ink" aria-hidden>→</span>
-                  </Link>
-                </li>
-              );
-            })}
-          </ul>
-        ) : <p className="muted">Nothing needs attention right now.</p>}
-        {d.needsAttention.length > 8 && <Link href="/tasks" className="link mt-3 inline-block text-sm">{d.needsAttention.length - 8} more →</Link>}
-      </section>
-
-      {/* Themes + recent activity */}
+      {/* 4. Research themes + recent activity */}
       <div className="mt-14 grid gap-10 lg:grid-cols-5">
         <section className="lg:col-span-3">
           <SectionHead title="Top research themes" href="/research/themes" linkText="All themes →" />
           {d.topThemes.length ? (
-            <div className="space-y-3">
+            <ul className="divide-y divide-line border-y border-line">
               {d.topThemes.map((t) => (
-                <Link key={t.theme} href={`/research/library?theme=${encodeURIComponent(t.theme)}`}
-                  className="block border border-l-[3px] border-line border-l-sage bg-white p-4 transition-colors hover:bg-surface">
-                  <div className="flex items-baseline justify-between gap-3">
-                    <span className="font-semibold">{t.theme}</span>
-                    <span className="text-xs text-muted">{t.count} interview{t.count === 1 ? "" : "s"}</span>
-                  </div>
-                  {t.quote && <p className="mt-1.5 text-sm text-muted">&ldquo;{t.quote}&rdquo;</p>}
-                </Link>
+                <li key={t.theme}>
+                  <Link href={`/research/library?theme=${encodeURIComponent(t.theme)}`} className="block px-1 py-3 transition-colors hover:bg-surface">
+                    <div className="flex items-baseline justify-between gap-3">
+                      <span className="text-sm font-semibold">{t.theme}</span>
+                      <span className="text-xs text-muted">{t.count} interview{t.count === 1 ? "" : "s"}</span>
+                    </div>
+                    {t.quote && <p className="mt-1 text-sm text-muted">&ldquo;{t.quote}&rdquo;</p>}
+                  </Link>
+                </li>
               ))}
-            </div>
-          ) : <p className="muted">Run /research-synthesis in Claude Code to build themes.</p>}
+            </ul>
+          ) : <p className="muted">No themes yet. Run /research-synthesis in Claude Code to build them from your interviews.</p>}
         </section>
 
         <section className="lg:col-span-2">
-          <SectionHead title="Recent activity" href="/tasks" linkText="My tasks →" />
+          <SectionHead title="Recent activity" />
           {d.recent.length ? (
             <ol className="relative space-y-4 border-l border-line pl-5">
               {d.recent.map((r) => (
@@ -138,7 +148,7 @@ export default async function Dashboard() {
                 </li>
               ))}
             </ol>
-          ) : <p className="muted">No activity yet.</p>}
+          ) : <p className="muted">No activity yet. Log a call or send outreach and it shows up here.</p>}
         </section>
       </div>
     </>

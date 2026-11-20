@@ -2,7 +2,7 @@ import { currentUser } from "@/lib/auth";
 import { isClosed, loadAll } from "@/lib/crm";
 import { journeyOfContact } from "@/lib/journey";
 import { team, teammateFor } from "@/lib/team";
-import { isTrue, today } from "@/lib/util";
+import { isTrue, isUrgent, today } from "@/lib/util";
 import { clientOptions, isOverdue, params, people } from "@/lib/views";
 import { TeamBoard, type TeamClientCard, type TeamColumn, type TeamTaskCard } from "@/components/TeamBoard";
 import { PageHeader } from "@/components/ui";
@@ -22,7 +22,7 @@ export default async function TeamPage({ searchParams }: { searchParams: Promise
     const c = byId.get(t.contact_id);
     return {
       id: t.id, title: t.title, who: columnKey(t.assigned_to), assigned_to: t.assigned_to, due_date: t.due_date,
-      overdue: !!t.due_date && t.due_date < today(), notes: t.notes || "",
+      overdue: !!t.due_date && t.due_date < today(), notes: t.notes || "", priority: t.priority || "", urgent: isUrgent(t),
       contact_id: t.contact_id, client: c?.name || "", stage: c ? journeyOfContact(c) : null,
     };
   });

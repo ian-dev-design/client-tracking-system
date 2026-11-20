@@ -1,6 +1,35 @@
 {
   "version": "0.0.1",
   "configurations": [
-    { "name": "crm", "runtimeExecutable": "/opt/homebrew/bin/node", "runtimeArgs": ["node_modules/next/dist/bin/next", "dev"], "port": 3000 }
+    {
+      "name": "crm",
+      "runtimeExecutable": "/opt/homebrew/bin/node",
+      "runtimeArgs": [
+        "node_modules/next/dist/bin/next",
+        "dev"
+      ],
+      "port": 3000
+    },
+    {
+      "name": "crm-demo",
+      "runtimeExecutable": "/usr/bin/env",
+      "runtimeArgs": [
+        "NEXT_DIST_DIR=.next-demo",
+        "DATA_BACKEND=demo",
+        "GOOGLE_CLIENT_ID=",
+        "GOOGLE_CLIENT_SECRET=",
+        "NEXTAUTH_URL=http://localhost:3001",
+        "ALLOWED_EMAILS=Ian <ian@example.com>, Jamie <jamie@example.com>, Sam <sam@example.com>",
+        "DEMO_USER_NAME=Ian",
+        "DEMO_USER_EMAIL=ian@example.com",
+        "EMAIL_TEST_REDIRECT=ian@example.com",
+        "/opt/homebrew/bin/node",
+        "node_modules/next/dist/bin/next",
+        "dev",
+        "-p",
+        "3001"
+      ],
+      "port": 3001
+    }
   ]
 }

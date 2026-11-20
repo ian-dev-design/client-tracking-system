@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { loadAll, isProspect } from "@/lib/crm";
 import { BOARD_STAGES } from "@/lib/data";
 import { boardCard, filterContacts, owners, params } from "@/lib/views";
@@ -12,7 +13,9 @@ export default async function OutreachBoard({ searchParams }: { searchParams: Pr
   const cards = filterContacts(prospects, f).map((c) => boardCard(c, interactions, interviews, drafts, "stage"));
   return (
     <>
-      <PageHeader title="Outreach" stage="outreach" />
+      <PageHeader title="Outreach" stage="outreach">
+        <Link href="/contacts/new" className="btn btn-primary">+ Add contact</Link>
+      </PageHeader>
       <FilterBar owners={owners(contacts)} show={owners(contacts).length > 1 ? ["type", "owner"] : ["type"]} />
       {/* key forces a fresh board when filters or data change */}
       <Board key={JSON.stringify(cards)} stages={[...BOARD_STAGES]} field="stage" track="outreach"

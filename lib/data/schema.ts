@@ -20,7 +20,7 @@ export const TABLES = {
     "id", "organization_id", "name", "address", "size", "notes", // size/notes labels come from config.json → sites
     "service_start", "service_end", "status", "created_at", "updated_at", "updated_by",
   ],
-  tasks: ["id", "title", "due_date", "assigned_to", "contact_id", "done", "done_at", "created_by", "created_at", "updated_at", "notes"],
+  tasks: ["id", "title", "due_date", "assigned_to", "contact_id", "done", "done_at", "created_by", "created_at", "updated_at", "notes", "priority"],
   // Full interview transcripts, word for word. Long ones are split into parts (a Sheet cell holds ~50k characters).
   transcripts: ["id", "interview_id", "part", "text", "created_at"],
   interactions: [
@@ -55,6 +55,10 @@ export const TABLES = {
     "created_by", "created_at", "updated_at",
   ],
   activity_log: ["id", "at", "user", "action", "table", "record_id", "details"],
+  // In-app notifications for teammates (the bell). event_key stops the same event notifying twice.
+  notifications: ["id", "to", "type", "title", "link", "by", "event_key", "read", "emailed_at", "created_at"],
+  // One row per teammate; no row = everything on. digest_day: Mon..Sun.
+  notification_settings: ["id", "email", "assign_email", "urgent_email", "digest_email", "digest_day", "updated_at"],
 };
 
 export type TableName = keyof typeof TABLES;

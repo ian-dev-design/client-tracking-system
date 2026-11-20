@@ -4,6 +4,7 @@ import { aiSurveyTakeaways } from "@/lib/ai";
 import { createContact, getContact, isProspect, isResearch, logInteraction, updateContact, logActivity } from "@/lib/crm";
 import { store, type RawSurveyResponse, type Row } from "@/lib/data";
 import { newId, normEmail, nowStamp, today } from "@/lib/util";
+import { notify } from "@/lib/notify";
 
 const formatAnswers = (r: RawSurveyResponse) => r.answers.map((a) => `${a.question}\n→ ${a.answer}`).join("\n\n");
 
@@ -37,6 +38,10 @@ async function record(r: RawSurveyResponse, contact: Row, interactions: Row[], a
   if (isProspect(contact) && ["", "Lead", "Outreach"].includes(contact.stage)) patch.stage = "Survey Completed";
   if (isResearch(contact) && ["", "To Contact", "Contacted"].includes(contact.research_status)) patch.research_status = "Survey Completed";
   if (Object.keys(patch).length) await updateContact(contact.id, patch, actor);
+  await notify({
+    to: contact.owner, type: "survey", by: "Survey", link: `/contacts/${contact.id}`, eventKey: `survey:${r.key}`,
+    title: `${contact.name} answered the survey`,
+  });
 }
 
 /** Process every new response that matches a contact. Returns counts. */

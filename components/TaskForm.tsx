@@ -60,7 +60,7 @@ export function TaskFormModal({ task, clients, people, defaultAssignee, onClose 
   const editing = !!task?.id;
   const [form, setForm] = useState({
     title: task?.title || "", contact_id: task?.contact_id || "", due_date: task?.due_date || "",
-    assigned_to: task?.assigned_to ?? defaultAssignee, notes: task?.notes || "",
+    assigned_to: task?.assigned_to ?? defaultAssignee, notes: task?.notes || "", priority: task?.priority === "Urgent" ? "Urgent" : "",
   });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -87,7 +87,7 @@ export function TaskFormModal({ task, clients, people, defaultAssignee, onClose 
             placeholder="e.g. Send the site visit quote" /></div>
         <div><span className="label">Client</span>
           <ClientPicker clients={clients} value={form.contact_id} onChange={set("contact_id")} /></div>
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid gap-4 sm:grid-cols-3">
           <div><label className="label" htmlFor="task-due">Due date</label>
             <input id="task-due" className="input" type="date" value={form.due_date} onChange={(e) => set("due_date")(e.target.value)} /></div>
           <div><label className="label" htmlFor="task-who">Assignee</label>
@@ -95,7 +95,14 @@ export function TaskFormModal({ task, clients, people, defaultAssignee, onClose 
               {options.map((p) => <option key={p} value={p}>{p}</option>)}
               <option value="">Unassigned</option>
             </select></div>
+          <div><label className="label" htmlFor="task-priority">Priority</label>
+            <select id="task-priority" className={`input ${form.priority === "Urgent" ? "font-semibold text-coral" : ""}`}
+              value={form.priority} onChange={(e) => set("priority")(e.target.value)}>
+              <option value="">Normal</option>
+              <option value="Urgent">Urgent</option>
+            </select></div>
         </div>
+        <p className="-mt-2 text-xs text-muted">Tasks 3+ days overdue count as urgent automatically.</p>
         <div><label className="label" htmlFor="task-note">Note <span className="font-normal normal-case text-faint">(optional)</span></label>
           <textarea id="task-note" className="input min-h-20" value={form.notes} onChange={(e) => set("notes")(e.target.value)} /></div>
         {error && <p className="text-sm text-coral">{error}</p>}

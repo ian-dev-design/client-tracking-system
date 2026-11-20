@@ -6,6 +6,7 @@ import { store, ONBOARDING_STEPS, RETENTION_SIGNALS, type Row, type TableName } 
 import type { Step } from "@/lib/target";
 import { addDays, isTrue, newId, nowStamp, today } from "@/lib/util";
 import { isPerson, team } from "@/lib/team";
+import { notify, taskEmailLines } from "@/lib/notify";
 
 export type Contact = Row;
 
@@ -61,8 +62,24 @@ export async function createContact(input: Row, actor: string): Promise<Contact>
   );
   await store().insert("contacts", contact);
   await logActivity(actor, "create", "contacts", contact.id, contact.name);
+  await notifyClientAssigned(contact, actor);
   return contact;
 }
+
+async function notifyClientAssigned(c: Row, actor: string) {
+  if (!c.owner) return;
+  await notify({
+    to: c.owner, type: "assign_client", by: actor, link: `/contacts/${c.id}`,
+    eventKey: `assign:client:${c.id}:${c.owner}:${nowStamp()}`,
+    title: `${actor} made you the owner of ${c.name}`,
+    email: { subject: `You now own ${c.name}`, lines: [
+      `${actor} made you the owner of ${c.name}${c.company ? ` (${c.company})` : ""}.`,
+      `Stage: ${c.stage || c.research_status || "—"}`,
+      c.next_followup_date ? `Next follow-up: ${formatDateShort(c.next_followup_date)}` : "",
+    ].filter(Boolean) },
+  });
+}
+const formatDateShort = (d: string) => new Date(d + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" });
 
 export async function updateContact(id: string, patch: Row, actor: string): Promise<Contact> {
   const current = await getContact(id);
@@ -78,6 +95,7 @@ export async function updateContact(id: string, patch: Row, actor: string): Prom
   await logActivity(actor, "update", "contacts", id, Object.keys(changes).filter((k) => !k.startsWith("updated")).join(", "));
   if (changes.owner !== undefined) {
     await logActivity(actor, "reassign", "contacts", id, `${actor} reassigned ${current.name} to ${changes.owner} (was ${current.owner || "no owner"})`);
+    await notifyClientAssigned({ ...current, ...changes }, actor);
   }
   return saved;
 }
@@ -108,6 +126,10 @@ export async function moveStage(id: string, field: "stage" | "research_status", 
   }, actor);
   if (field === "stage" && value === "Onboarding") await ensureOnboardingRow(id, actor);
   if (field === "stage" && value === "Active / Retention") await ensureRetentionRow(id, actor);
+  await notify({
+    to: c.owner, type: "stage_move", by: actor, link: `/contacts/${id}`, eventKey: `stage:${id}:${field}:${value}:${nowStamp()}`,
+    title: `${actor} moved ${c.name} to ${value}`,
+  });
   return saved;
 }
 
@@ -311,11 +333,28 @@ export async function addTask(input: Row, actor: string): Promise<Row> {
     // "" = Unassigned (chosen on purpose); left out entirely = the person creating it.
     assigned_to: input.assigned_to ?? actor,
     contact_id: input.contact_id || "", done: "", done_at: "", created_by: actor, created_at: now, updated_at: now,
-    notes: input.notes || "",
+    notes: input.notes || "", priority: input.priority === "Urgent" ? "Urgent" : "",
   };
   await store().insert("tasks", task);
   await logActivity(actor, "create", "tasks", task.id, `${actor} added task “${task.title}” for ${task.assigned_to || "Unassigned"}`);
+  await notifyTask(task, actor, task.priority === "Urgent" ? "urgent_assign" : "assign");
   return task;
+}
+
+/** Tell the assignee about a task: assigned to them, and/or marked urgent. */
+async function notifyTask(t: Row, actor: string, kind: "assign" | "urgent" | "urgent_assign") {
+  if (!t.assigned_to) return;
+  const client = t.contact_id ? (await getContact(t.contact_id))?.name || "" : "";
+  const urgent = kind !== "assign";
+  await notify({
+    to: t.assigned_to, type: kind === "urgent" ? "urgent" : "assign_task", by: actor, link: "/tasks",
+    eventKey: `${kind}:task:${t.id}:${t.assigned_to}:${nowStamp()}`,
+    title: kind === "urgent" ? `${actor} marked urgent: ${t.title}` : `${actor} assigned you${urgent ? " an urgent task" : ""}: ${t.title}`,
+    email: {
+      subject: `${urgent ? "Urgent: " : "New task: "}${t.title}`,
+      lines: taskEmailLines({ ...t, priority: urgent ? "Urgent" : t.priority }, client, actor, kind === "urgent" ? "marked this task urgent" : "assigned you a task"),
+    },
+  });
 }
 
 /** Edit a task. `done: "TRUE"` / `""` checks it off or reopens it. Reassigning is logged on its own. */
@@ -332,6 +371,10 @@ export async function updateTask(id: string, patch: Row, actor: string) {
   const other = Object.keys(patch).filter((k) => k !== "assigned_to" || !reassigned);
   if (other.length) {
     await logActivity(actor, patch.done !== undefined ? (isTrue(patch.done) ? "check" : "uncheck") : "update", "tasks", id, other.join(", "));
+  }
+  const nowUrgent = patch.priority === "Urgent" && current.priority !== "Urgent";
+  if (!isTrue(saved.done) && (reassigned || nowUrgent)) {
+    await notifyTask({ ...current, ...saved }, actor, reassigned && (nowUrgent || saved.priority === "Urgent") ? "urgent_assign" : reassigned ? "assign" : "urgent");
   }
   return saved;
 }
@@ -362,6 +405,19 @@ export async function handOff(input: { from: string; to: string; taskIds?: strin
   for (const c of moveClients) {
     await store().update("contacts", c.id, { owner: to, updated_at: nowStamp(), updated_by: actor });
     await logActivity(actor, "handoff", "contacts", c.id, `${actor} handed off ${c.name} from ${label(from)} to ${label(to)}`);
+  }
+  if (to && moveTasks.length + moveClients.length) {
+    const n = (k: number, w: string) => `${k} ${w}${k === 1 ? "" : "s"}`;
+    const what = [moveTasks.length && n(moveTasks.length, "task"), moveClients.length && n(moveClients.length, "client")].filter(Boolean).join(" and ");
+    await notify({
+      to, type: "handoff", by: actor, link: "/tasks", eventKey: `handoff:${label(from)}:${to}:${nowStamp()}:${[...moveTasks, ...moveClients].map((x) => x.id).join(",")}`,
+      title: `${actor} handed you ${what} from ${label(from)}`,
+      email: { subject: `${actor} handed you ${what}`, lines: [
+        `${actor} handed you ${what} from ${label(from)}:`,
+        ...moveTasks.map((t) => `• Task: ${t.title}${t.due_date ? ` (due ${formatDateShort(t.due_date)})` : ""}`),
+        ...moveClients.map((c) => `• Client: ${c.name}${c.company ? ` (${c.company})` : ""}`),
+      ] },
+    });
   }
   return { tasks: moveTasks.length, clients: moveClients.length };
 }

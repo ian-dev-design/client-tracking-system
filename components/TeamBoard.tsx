@@ -13,9 +13,10 @@ import { postJson } from "./Modal";
 import { TaskFormModal, type ClientOption } from "./TaskForm";
 import { HandOffButton } from "./HandOff";
 import { NewTaskButton } from "./TaskForm";
+import { UrgentTag } from "./TaskList";
 
 export type TeamTaskCard = {
-  id: string; title: string; who: string; due_date: string; overdue: boolean; notes: string;
+  id: string; title: string; who: string; due_date: string; overdue: boolean; notes: string; priority: string; urgent: boolean;
   contact_id: string; client: string; stage: JourneyKey | null; assigned_to: string;
 };
 export type TeamClientCard = {
@@ -64,6 +65,7 @@ function TaskCard({ t, onOpen }: { t: TeamTaskCard; onOpen: () => void }) {
   return (
     <button type="button" onClick={onOpen}
       className={`block w-full border border-l-[3px] border-line bg-white p-3 text-left transition-colors hover:bg-surface ${t.stage ? journey(t.stage).border : "border-l-line"}`}>
+      {t.urgent && <div className="mb-1"><UrgentTag auto={t.priority !== "Urgent"} /></div>}
       <div className="text-sm font-medium text-ink">{t.title}</div>
       <div className="mt-1 flex items-center justify-between gap-2 text-xs">
         <span className="truncate text-muted">{t.client || "No client"}</span>
@@ -190,7 +192,7 @@ export function TeamBoard({ view, columns, tasks, clients, clientOptions, people
 
       {editing && (
         <TaskFormModal clients={clientOptions} people={people} defaultAssignee={me} onClose={() => setEditing(null)}
-          task={{ id: editing.id, title: editing.title, contact_id: editing.contact_id, due_date: editing.due_date, assigned_to: editing.assigned_to, notes: editing.notes }} />
+          task={{ id: editing.id, title: editing.title, contact_id: editing.contact_id, due_date: editing.due_date, assigned_to: editing.assigned_to, notes: editing.notes, priority: editing.priority }} />
       )}
     </>
   );

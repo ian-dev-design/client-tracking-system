@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { formatDate, isTrue } from "@/lib/util";
+import { formatDate, isTrue, isUrgent } from "@/lib/util";
 import { postJson } from "./Modal";
 import { TaskFormModal, type ClientOption } from "./TaskForm";
 import { Spinner } from "./ui";
@@ -46,10 +46,13 @@ export function TaskList({ tasks, clients, people, me, showContact = false, empt
               <input type="checkbox" className="accent-forest" checked={done} disabled={busyId === t.id}
                 onChange={() => patch(t, { done: done ? "" : "TRUE" })} aria-label={`Mark "${t.title}" ${done ? "not done" : "done"}`} />
               <div className="min-w-0 flex-1">
-                <button type="button" onClick={() => setEditing(t)}
-                  className={`block max-w-full truncate text-left text-sm hover:underline ${done ? "text-faint line-through" : "text-ink"}`}>
-                  {t.title}
-                </button>
+                <div className="flex min-w-0 items-center gap-2">
+                  {isUrgent(t) && <UrgentTag auto={t.priority !== "Urgent"} />}
+                  <button type="button" onClick={() => setEditing(t)}
+                    className={`min-w-0 truncate text-left text-sm hover:underline ${done ? "text-faint line-through" : "text-ink"}`}>
+                    {t.title}
+                  </button>
+                </div>
                 <div className="mt-0.5 flex flex-wrap gap-x-3 text-xs text-muted">
                   {showContact && t.contact_id && (
                     <Link href={`/contacts/${t.contact_id}`} className="truncate font-medium text-ink/80 hover:underline">{t.contact_name || "Client"}</Link>
@@ -77,5 +80,13 @@ export function TaskList({ tasks, clients, people, me, showContact = false, empt
       {error && <p className="mt-2 text-sm text-coral">{error}</p>}
       {editing && <TaskFormModal task={editing} clients={clients} people={people} defaultAssignee={me} onClose={() => setEditing(null)} />}
     </div>
+  );
+}
+
+/** Red "Urgent" tag. auto = urgent because it's 3+ days overdue. */
+export function UrgentTag({ auto = false }: { auto?: boolean }) {
+  return (
+    <span title={auto ? "Urgent: 3+ days overdue" : "Marked urgent"}
+      className="shrink-0 rounded-xs bg-coral/10 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-coral">Urgent</span>
   );
 }

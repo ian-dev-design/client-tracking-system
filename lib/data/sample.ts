@@ -230,7 +230,7 @@ export function buildSampleData(): { tables: Record<TableName, Row[]>; raw: stri
   return {
     tables: {
       contacts, interactions, surveys, interviews, transcripts, research_themes, onboarding, retention, organizations, sites, tasks,
-      email_templates, interview_guides, drafts: [], activity_log: [],
+      email_templates, interview_guides, drafts: [], activity_log: [], notifications: [], notification_settings: [],
     },
     raw,
   };

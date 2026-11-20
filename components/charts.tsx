@@ -3,13 +3,14 @@
 
 export type Slice = { label: string; value: number; color: string; href?: string };
 
-export function Donut({ data, caption, href, empty = "Nothing yet", format = String, size = "md" }: {
+export function Donut({ data, caption, href, empty = "Nothing yet", format = String, size = "md", showLegend = true }: {
   data: Slice[];
   caption?: string; // small text in the middle, e.g. "6 people"
   href?: string; // makes the whole chart a link (slices can also have their own href)
   empty?: string;
   format?: (value: number) => string; // how values read in the legend, e.g. money
   size?: "md" | "lg"; // lg = the dashboard's hero chart
+  showLegend?: boolean; // false when the page shows its own list next to it
 }) {
   const total = data.reduce((s, d) => s + d.value, 0);
   const r = 15.915; // circumference = 100, so dash lengths are percentages
@@ -49,7 +50,7 @@ export function Donut({ data, caption, href, empty = "Nothing yet", format = Str
     </ul>
   );
 
-  const body = <div className="flex flex-wrap items-center gap-5">{ring}{legend}</div>;
+  const body = showLegend ? <div className="flex flex-wrap items-center gap-5">{ring}{legend}</div> : ring;
   return href ? <a href={href} className="block">{body}</a> : body;
 }
 

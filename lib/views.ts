@@ -89,3 +89,13 @@ export function sortTasks(tasks: Row[]): Row[] {
 /** Open tasks assigned to you that are due today or earlier. */
 export const tasksDue = (tasks: Row[], user: { name: string; email: string }) =>
   tasks.filter((t) => !isTrue(t.done) && isMine(t.assigned_to, user) && t.due_date && t.due_date <= today());
+
+export type NextAction = "draft" | "interview" | "log" | "checklist" | "checkin";
+/** The one next step that fits where someone is (used by follow-up and Needs attention rows). */
+export function actionFor(c: Row, ready: boolean): NextAction {
+  if (ready) return "interview";
+  if (c.stage === "Onboarding") return "checklist";
+  if (c.stage === "Active / Retention") return "checkin";
+  if (["Client Interview", "Qualified"].includes(c.stage) || (!isProspect(c) && ["Interview Scheduled", "Interviewed"].includes(c.research_status))) return "log";
+  return "draft";
+}
