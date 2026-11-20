@@ -1,0 +1,82 @@
+{
+  "surveyLink": "[PASTE SURVEY LINK HERE]",
+  "formId": "",
+  "emailEntryId": "",
+  "spreadsheetId": "",
+  "transcriptsFolderId": "",
+  "followupDays": 4,
+  "targetCustomer": {
+    "companyName": "GoatOps",
+    "industry": "Land and grounds maintenance (managed goat grazing)",
+    "whatWeSell": "Goat herds rented out to clear overgrown grass and brush, a cheaper, greener alternative to mowing and weed killer",
+    "idealCustomer": "Any organization with outdoor land to maintain",
+    "customerTypes": [
+      "Office park",
+      "School or university",
+      "City or parks department",
+      "Warehouse",
+      "Apartment complex",
+      "HOA",
+      "Church",
+      "Golf course"
+    ],
+    "typicalRoles": [
+      "Facilities manager",
+      "Property manager",
+      "Operations manager"
+    ],
+    "problemWeSolve": "Keeping land clear without expensive mowing crews, loud equipment, or chemicals",
+    "workArea": "grounds and land maintenance",
+    "welcomeNote": "The herd is ready to get to work (they've been chewing on the idea)."
+  },
+  "onboardingSteps": [
+    {
+      "key": "site_visit",
+      "label": "Site visit"
+    },
+    {
+      "key": "quote_approved",
+      "label": "Quote approved"
+    },
+    {
+      "key": "herd_delivered",
+      "label": "Herd delivered"
+    },
+    {
+      "key": "grazing_completed",
+      "label": "Grazing completed"
+    },
+    {
+      "key": "followup_checkin",
+      "label": "Follow-up check-in"
+    }
+  ],
+  "retentionSignals": [
+    {
+      "key": "seasonal_rebooking",
+      "label": "Booked again for next season"
+    },
+    {
+      "key": "added_sites",
+      "label": "Added more sites"
+    },
+    {
+      "key": "referral",
+      "label": "Gave a referral"
+    }
+  ],
+  "sites": {
+    "sizeLabel": "Acreage",
+    "notesLabel": "Terrain notes",
+    "serviceLabel": "Grazing dates",
+    "statuses": [
+      "Prospect",
+      "Quoted",
+      "Scheduled",
+      "In progress",
+      "Completed"
+    ],
+    "sizeUnit": "acres"
+  },
+  "currency": "USD"
+}

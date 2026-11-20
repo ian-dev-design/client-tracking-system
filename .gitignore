@@ -1,0 +1,46 @@
+# --- Secrets & credentials (never commit) ---
+.env
+.env.*
+!.env.example
+*service-account*.json
+*credentials*.json
+client_secret*.json
+*token*.json
+*.pem
+*.key
+*.p12
+# Google service-account key downloads look like "<project>-<12 hex chars>.json"
+*-[0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f].json
+*key*.json
+!package*.json
+.claude/settings.local.json
+
+# --- Contact data, transcripts, survey responses, exports (never commit) ---
+.demo-data/
+transcripts/
+survey-responses/
+exports/
+data/
+*.csv
+*.xlsx
+*.vtt
+*.srt
+*.docx
+*.pdf
+*.txt
+*.eml
+*.mbox
+# the fake demo transcripts are OK to commit
+!sample-data/*.vtt
+!sample-data/*.txt
+screenshots/
+
+# --- Build / tooling ---
+node_modules/
+.next/
+out/
+next-env.d.ts
+*.tsbuildinfo
+.vercel/
+.DS_Store
+npm-debug.log*

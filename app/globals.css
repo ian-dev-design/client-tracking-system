@@ -1,0 +1,54 @@
+@import "tailwindcss";
+
+/*
+  Deep forest palette, Swiss/minimal style.
+  Every color in the app comes from this list — use these names (bg-forest, text-muted, border-line…),
+  not Tailwind's default palette. Stage accents: sage, pine, sand, clay (see lib/journey.ts).
+*/
+@theme {
+  --font-sans: var(--font-geist), "Helvetica Neue", Helvetica, Arial, sans-serif;
+
+  --color-paper: #f5f3ee;   /* page background */
+  --color-surface: #faf9f6; /* subtle panels */
+  --color-wash: #eeebe4;    /* hover / empty tracks */
+  --color-line: #e2dfd6;    /* 1px dividers */
+  --color-ink: #141414;     /* main text */
+  --color-muted: #5c625d;   /* secondary text */
+  --color-faint: #8f948e;   /* hints, axis labels */
+  --color-forest: #1f3a2e;  /* primary: buttons, links, active, "ready" */
+  --color-coral: #e8735a;   /* overdue / at risk */
+
+  --color-sage: #9ab39a;    /* Research */
+  --color-pine: #2f5d4a;    /* Outreach */
+  --color-sand: #c8a45d;    /* Onboarding */
+  --color-clay: #a65e46;    /* Retention */
+
+  --radius-xs: 2px;
+  --radius-sm: 3px;
+}
+
+body {
+  @apply bg-paper text-ink antialiased;
+  font-feature-settings: "ss01", "tnum";
+}
+
+@layer components {
+  .card { @apply rounded-sm border border-line bg-white; }
+  .btn { @apply inline-flex items-center justify-center gap-1.5 rounded-xs border border-forest/30 bg-transparent px-3 py-1.5 text-sm font-medium text-forest transition-colors hover:border-forest hover:bg-forest/5 disabled:opacity-40 cursor-pointer; }
+  .btn-sm { @apply px-2 py-1 text-xs; }
+  .btn-primary { @apply border-forest bg-forest text-paper hover:bg-forest/90 hover:text-paper; }
+  .btn-danger { @apply border-coral/50 text-coral hover:border-coral hover:bg-coral/5; }
+  .input { @apply w-full rounded-xs border border-line bg-white px-3 py-2 text-sm text-ink outline-none transition-colors placeholder:text-faint focus:border-forest; }
+  .label { @apply mb-1.5 block text-[11px] font-semibold uppercase tracking-[0.08em] text-muted; }
+  .eyebrow { @apply text-[11px] font-semibold uppercase tracking-[0.12em] text-muted; }
+  .h1 { @apply text-4xl font-bold tracking-[-0.02em] text-ink; }
+  .h2 { @apply text-[11px] font-semibold uppercase tracking-[0.12em] text-muted; }
+  .muted { @apply text-sm text-muted; }
+  .link { @apply text-forest underline decoration-forest/30 underline-offset-2 hover:decoration-forest; }
+  .chip { @apply inline-flex items-center rounded-xs bg-wash px-1.5 py-0.5 text-xs font-medium text-ink; }
+  .table { @apply w-full text-left text-sm; }
+  .table th { @apply border-b border-line px-4 py-3 text-[11px] font-semibold uppercase tracking-[0.08em] text-muted; }
+  .table td { @apply border-b border-line px-4 py-3.5 align-top; }
+  .table tr:last-child td { @apply border-b-0; }
+  .table tbody tr { @apply transition-colors hover:bg-surface; }
+}
