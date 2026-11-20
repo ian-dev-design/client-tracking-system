@@ -31,8 +31,9 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 
 export default async function ContactPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const [user, { contacts, interactions, surveys, interviews, onboarding, organizations, sites, tasks }] =
+  const [user, { contacts, interactions, surveys, interviews, onboarding, organizations, sites, tasks, transcripts }] =
     await Promise.all([currentUser(), loadAll()]);
+  const hasTranscript = new Set(transcripts.map((t) => t.interview_id));
   const c = contacts.find((x) => x.id === id);
   if (!c) notFound();
   const org = organizations.find((o) => o.id === c.organization_id);
@@ -157,7 +158,9 @@ export default async function ContactPage({ params }: { params: Promise<{ id: st
                 <h2 className="h2">Interview · {formatDate(iv.date)}</h2>
                 <span className="chip">{iv.purpose.replace("_", " ")}</span>
                 {iv.extraction_status === "pending" && <span className="chip bg-sand/20 text-ink">Findings pending — run /log-interview</span>}
-                {iv.transcript_link && <a href={iv.transcript_link} target="_blank" className="link ml-auto text-sm">Original transcript ↗</a>}
+                {(hasTranscript.has(iv.id) || iv.transcript_link) && (
+                  <Link href={`/interviews/${iv.id}/transcript`} className="link ml-auto text-sm">View transcript →</Link>
+                )}
               </div>
               {iv.summary && <p className="text-sm text-ink">{iv.summary}</p>}
               <div className="mt-3 grid gap-4 sm:grid-cols-2">

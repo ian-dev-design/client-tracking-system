@@ -20,7 +20,7 @@ client_secret*.json
 transcripts/
 survey-responses/
 exports/
-data/
+/data/
 *.csv
 *.xlsx
 *.vtt

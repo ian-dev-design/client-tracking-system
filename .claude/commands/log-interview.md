@@ -11,10 +11,11 @@ Log an interview: $ARGUMENTS
 A) New transcript (file path, pasted text, or Google Doc link):
 1. Identify the contact (`npm run crm -- contact "<name>"`); create them with /add-lead first if needed.
 2. Ask the purpose: **research**, **sales_discovery**, or **both**. Ask the interview date if unclear.
-3. Save the original:
-   - File: `npm run crm -- save-transcript <contactId> <YYYY-MM-DD> <path>` → prints the Drive link and the text. (Pasted text: write it to a temp .txt in the scratchpad first.)
-   - Google Doc link: the Doc itself is the original — just use its link as `transcript_link` (it must be shared with the service account or live in the Shared Drive).
-4. Create the row: `npm run crm -- add-interview '{"contact_id":"...","date":"...","interviewer":"...","purpose":"...","transcript_link":"..."}'`
+3. Create the interview row: `npm run crm -- add-interview '{"contact_id":"...","date":"...","interviewer":"...","purpose":"..."}'` (for a Google Doc, also pass `"transcript_link":"<doc url>"`; the Doc must be shared with the service account email to be readable).
+4. Store the transcript word for word on it:
+   - File: `npm run crm -- attach-transcript <interviewId> <path>` (prints the readable text).
+   - Pasted text: write it exactly as given to a temp .txt in the scratchpad, then attach that file.
+   - Easiest for me: I can also paste it into the web app (**Add interview → Paste text**); then use option B.
 
 B) No arguments: run `npm run crm -- interviews-pending` and process each (get text with `npm run crm -- transcript-text <interviewId>`).
 

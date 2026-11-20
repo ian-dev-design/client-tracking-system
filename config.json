@@ -3,7 +3,6 @@
   "formId": "",
   "emailEntryId": "",
   "spreadsheetId": "",
-  "transcriptsFolderId": "",
   "followupDays": 4,
   "targetCustomer": {
     "companyName": "GoatOps",

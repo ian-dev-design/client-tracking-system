@@ -42,10 +42,8 @@ This creates a "CRM Database" Sheet and a 10-question discovery survey you own. 
 3. Put the whole JSON on one line in `.env.local` as `GOOGLE_SERVICE_ACCOUNT_JSON=...`, then delete the downloaded file.
 4. Open the Sheet → **Share** → paste the service account's email (`crm-app@...iam.gserviceaccount.com`) → **Editor**. Share it with nobody else.
 
-### 4. Transcripts folder (Shared Drive)
-1. In Google Drive, go to **Shared drives → New** and name it "CRM Transcripts".
-2. **Manage members** → add the service account email as **Content manager**.
-3. Open the drive and copy the ID from the URL (`.../folders/<ID>`) into `config.json` → `transcriptsFolderId`.
+### 4. Transcripts (nothing to set up)
+Transcripts are stored word for word inside the CRM (the Sheet's `transcripts` tab; long ones are split across a few rows). Read one from the interview on a contact's profile → **View transcript**, or download it as `.txt`. No Drive folder or extra permission is needed.
 
 ### 5. Google sign-in (OAuth)
 1. Go to **APIs & Services → OAuth consent screen**, set User type to **Internal** and the app name to "CRM", then save.
@@ -100,7 +98,7 @@ Removing someone locks them out on their next page load, even if they're still s
 
 **Surveys** sync when the app opens, every 5 minutes while it's open, and whenever you click **Sync surveys now**. Matched responses are saved to the `surveys` tab, the contact moves to Survey Completed, and they're flagged "★ Ready to request an interview".
 
-**Add interview:** upload .txt, .docx, .vtt/.srt, PDF, paste text, or give a Google Doc link. The original is saved untouched to the Shared Drive as `contactname_date`. Findings are extracted by `/log-interview`, or automatically if an API key is set (see below).
+**Add interview:** upload .txt, .docx, .vtt/.srt, PDF, paste text, or give a Google Doc link. The transcript is stored in the CRM word for word and opens from the profile (**View transcript**). Tip: from Granola or any notes app, copy the transcript and use **Paste text**. Findings are extracted by `/log-interview`, or automatically if an API key is set (see below).
 
 ## Claude Code commands
 
@@ -115,7 +113,7 @@ Run these from this folder in Claude Code. They write to the Sheet through `npm 
 | `/log-survey` | Writes key takeaways for survey responses |
 | `/interview-guide` | Creates or updates an open-ended, non-leading interview guide |
 | `/interview-prep` | Tailors a guide to one person using their survey answers |
-| `/log-interview` | Saves a transcript (any format), extracts summary, pains, tools, quotes and themes, and suggests the next stage. With no arguments, it processes interviews uploaded in the app |
+| `/log-interview` | Stores a transcript (any format) word for word, extracts summary, pains, tools, quotes and themes, and suggests the next stage. With no arguments, it processes interviews added in the app |
 | `/research-synthesis` | Updates `research_themes` and gives you a short patterns report |
 | `/convert` | Turns a research participant into a prospect |
 | `/start-onboarding` | Moves a client to Onboarding, creates the checklist, drafts a welcome email |

@@ -6,7 +6,6 @@ export const config = {
   formId: process.env.GOOGLE_FORM_ID || raw.formId,
   emailEntryId: process.env.SURVEY_EMAIL_ENTRY_ID || raw.emailEntryId,
   spreadsheetId: process.env.SPREADSHEET_ID || raw.spreadsheetId,
-  transcriptsFolderId: process.env.TRANSCRIPTS_FOLDER_ID || raw.transcriptsFolderId,
   followupDays: raw.followupDays || 4,
 };
 

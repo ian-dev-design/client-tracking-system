@@ -7,13 +7,13 @@ import path from "node:path";
 import { dataBackend } from "@/lib/config";
 import * as crm from "@/lib/crm";
 import { store, TABLES, type Row, type TableName } from "@/lib/data";
-import { DEMO_TRANSCRIPTS_DIR, resetDemoData } from "@/lib/data/demo";
+import { resetDemoData } from "@/lib/data/demo";
 import { buildSampleData } from "@/lib/data/sample";
 import { DEFAULT_GUIDES, DEFAULT_TEMPLATES } from "@/lib/defaults";
 import { buildSurveyScript } from "@/lib/surveyScript";
 import { buildDraft } from "@/lib/outreach";
 import { syncSurveys, listUnmatched } from "@/lib/surveys";
-import { extractText, googleDocId, mimeFor, readGoogleDoc, transcriptFileName } from "@/lib/transcripts";
+import { extractText, googleDocId, readGoogleDoc, stripCaptions } from "@/lib/transcripts";
 import { isDueToday, isOverdue } from "@/lib/views";
 import { nowIso, today } from "@/lib/util";
 
@@ -43,19 +43,12 @@ async function findContact(query: string) {
   return hits.find((c) => c.id === query) || hits[0];
 }
 
-async function transcriptText(link: string): Promise<string> {
-  if (link.startsWith("/api/demo-files/")) {
-    const name = decodeURIComponent(link.split("/").pop()!);
-    return extractText(name, fs.readFileSync(path.join(DEMO_TRANSCRIPTS_DIR, name)));
-  }
-  if (googleDocId(link)) return (await readGoogleDoc(link)).text;
-  const id = link.match(/\/d\/([\w-]+)/)?.[1] || link.match(/[?&]id=([\w-]+)/)?.[1];
-  if (!id) throw new Error("Can't read this transcript link");
-  const { driveClient } = await import("@/lib/google");
-  const drive = driveClient();
-  const meta = await drive.files.get({ fileId: id, fields: "name", supportsAllDrives: true });
-  const res = await drive.files.get({ fileId: id, alt: "media", supportsAllDrives: true }, { responseType: "arraybuffer" });
-  return extractText(meta.data.name || "file.txt", Buffer.from(res.data as ArrayBuffer));
+/** An interview's transcript as readable text: the stored copy (captions stripped), or its Google Doc. */
+async function transcriptText(iv: Row): Promise<string> {
+  const stored = crm.transcriptFor(iv.id, await store().list("transcripts"));
+  if (stored) return /-->/.test(stored) ? stripCaptions(stored) : stored;
+  if (googleDocId(iv.transcript_link)) return (await readGoogleDoc(iv.transcript_link)).text;
+  throw new Error("No transcript stored for this interview");
 }
 
 const HELP = `
@@ -76,7 +69,7 @@ Surveys       sync-surveys                     match new Form responses
               unmatched                        responses with no matching contact
               surveys-pending                  surveys without key_takeaways
               update-survey <id> '<json>'
-Interviews    save-transcript <contactId> <YYYY-MM-DD> <file>   save original untouched, print link + text
+Interviews    attach-transcript <interviewId> <file>   store a transcript word for word on an interview
               read-file <file>                 print text of any transcript file
               add-interview '<json>'
               update-interview <id> '<json>'
@@ -149,11 +142,12 @@ async function main() {
       return out(await store().update("surveys", a, { ...patch, updated_at: nowIso(), updated_by: actor }));
     }
 
-    case "save-transcript": {
-      const ct = await findContact(a);
-      const data = fs.readFileSync(c);
-      const link = await store().saveTranscript(transcriptFileName(ct.name, b, path.extname(c)), data, mimeFor(c));
-      return out({ link, text: await extractText(c, data) });
+    case "attach-transcript": {
+      // Store a transcript file word for word on an interview (plain-text formats as-is; .docx/.pdf as their text).
+      const data = fs.readFileSync(b);
+      const raw = [".txt", ".md", ".vtt", ".srt"].includes(path.extname(b).toLowerCase()) ? data.toString("utf8") : await extractText(b, data);
+      await crm.saveTranscriptText(a, raw, actor);
+      return out({ ok: true, characters: raw.length, text: await extractText(b, data) });
     }
     case "read-file": return out(await extractText(a, fs.readFileSync(a)));
     case "add-interview": return out(await crm.addInterview(json(a), actor));
@@ -162,7 +156,7 @@ async function main() {
     case "transcript-text": {
       const iv = (await store().list("interviews")).find((i) => i.id === a);
       if (!iv) throw new Error("Interview not found");
-      return out(await transcriptText(iv.transcript_link));
+      return out(await transcriptText(iv));
     }
 
     case "list": return out(await store().list(table(a)));
@@ -196,12 +190,7 @@ async function main() {
       if (dataBackend() !== "sheets") return out("Use seed-demo for demo mode.");
       if ((await store().list("contacts")).length) throw new Error("contacts tab isn't empty — refusing to add sample data.");
       const { tables } = buildSampleData();
-      // Upload the fake sample transcripts to the Drive folder so their links work.
-      for (const iv of tables.interviews) {
-        const file = path.join("sample-data", decodeURIComponent(iv.transcript_link.split("/").pop()!));
-        iv.transcript_link = await store().saveTranscript(path.basename(file), fs.readFileSync(file), mimeFor(file));
-      }
-      for (const t of ["organizations", "contacts", "sites", "tasks", "interactions", "surveys", "interviews", "research_themes", "onboarding", "retention"] as TableName[]) {
+      for (const t of ["organizations", "contacts", "sites", "tasks", "interactions", "surveys", "interviews", "transcripts", "research_themes", "onboarding", "retention"] as TableName[]) {
         for (const row of tables[t]) await store().insert(t, row);
       }
       return out("Added 6 sample contacts (all fake, @example.com). Delete them from the Sheet when you're done.");

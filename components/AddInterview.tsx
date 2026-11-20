@@ -19,7 +19,7 @@ export function AddInterviewModal({ contact, aiEnabled, onClose }: {
   if (result) {
     return (
       <Modal title="Interview saved" onClose={onClose}>
-        <p className="text-sm">The original transcript was saved untouched.</p>
+        <p className="text-sm">The transcript was saved word for word. Open it from the interview on the profile (&ldquo;View transcript&rdquo;).</p>
         <p className="muted mt-2">
           {result.extracted
             ? "Summary, pain points, quotes and themes were extracted."
@@ -72,7 +72,7 @@ export function AddInterviewModal({ contact, aiEnabled, onClose }: {
         {mode === "doc" && <input name="docUrl" className="input" placeholder="https://docs.google.com/document/d/…" />}
         {!aiEnabled && (
           <p className="text-xs text-muted">
-            AI extraction in the app is off (no API key). The transcript is saved now; run <code>/log-interview</code> in Claude Code to pull out findings.
+            The transcript is stored in the CRM, unedited. To pull out the summary, quotes and themes, run <code>/log-interview</code> in Claude Code.
           </p>
         )}
         {error && <p className="text-sm text-coral">{error}</p>}

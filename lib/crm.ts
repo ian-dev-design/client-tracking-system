@@ -20,13 +20,14 @@ export async function logActivity(user: string, action: string, table: TableName
 export async function loadAll() {
   const s = store();
   const [contacts, interactions, surveys, interviews, themes, onboarding, retention, drafts, templates, guides,
-    organizations, sites, tasks] = await Promise.all([
+    organizations, sites, tasks, transcripts] = await Promise.all([
     s.list("contacts"), s.list("interactions"), s.list("surveys"), s.list("interviews"),
     s.list("research_themes"), s.list("onboarding"), s.list("retention"), s.list("drafts"),
     s.list("email_templates"), s.list("interview_guides"), s.list("organizations"), s.list("sites"), s.list("tasks"),
+    s.list("transcripts"),
   ]);
   return { contacts, interactions, surveys, interviews, themes, onboarding, retention, drafts, templates, guides,
-    organizations, sites, tasks };
+    organizations, sites, tasks, transcripts };
 }
 export type AllData = Awaited<ReturnType<typeof loadAll>>;
 
@@ -317,6 +318,26 @@ export async function updateTask(id: string, patch: Row, actor: string) {
   const saved = await store().update("tasks", id, next);
   await logActivity(actor, patch.done !== undefined ? (isTrue(patch.done) ? "check" : "uncheck") : "update", "tasks", id, Object.keys(patch).join(", "));
   return saved;
+}
+
+// ---------- Transcripts ----------
+
+const PART_SIZE = 40_000; // stays under the Sheets 50,000-character cell limit
+
+/** Store an interview's transcript exactly as given (never edited), split into parts if it's long. */
+export async function saveTranscriptText(interviewId: string, text: string, actor: string) {
+  if (!text.trim()) return;
+  const now = nowIso();
+  for (let i = 0, part = 1; i < text.length; i += PART_SIZE, part++) {
+    await store().insert("transcripts", { id: newId("tr"), interview_id: interviewId, part: String(part), text: text.slice(i, i + PART_SIZE), created_at: now });
+  }
+  await logActivity(actor, "create", "transcripts", interviewId, `${text.length} characters`);
+}
+
+/** The full transcript for an interview ("" if none), parts joined back together. */
+export function transcriptFor(interviewId: string, transcripts: Row[]): string {
+  return transcripts.filter((t) => t.interview_id === interviewId)
+    .sort((a, b) => Number(a.part) - Number(b.part)).map((t) => t.text).join("");
 }
 
 // ---------- Interviews ----------

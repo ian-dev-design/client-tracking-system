@@ -1,4 +1,4 @@
-// Read transcripts in any format into plain text. Originals are never modified.
+// Read transcripts in any format into plain text. The stored transcript itself is never modified.
 
 import path from "node:path";
 import { driveClient } from "@/lib/google";
@@ -33,15 +33,6 @@ export async function extractText(fileName: string, data: Buffer): Promise<strin
     return text;
   }
   return data.toString("utf8"); // .txt, .md, pasted text
-}
-
-export function mimeFor(fileName: string): string {
-  const ext = path.extname(fileName).toLowerCase();
-  return ({
-    ".txt": "text/plain", ".md": "text/markdown", ".vtt": "text/vtt", ".srt": "application/x-subrip",
-    ".pdf": "application/pdf",
-    ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-  } as Record<string, string>)[ext] || "application/octet-stream";
 }
 
 export const googleDocId = (url: string) => url.match(/\/document\/d\/([\w-]+)/)?.[1] || null;
