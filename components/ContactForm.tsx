@@ -1,5 +1,6 @@
 "use client";
 
+import { toast } from "./Toast";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { postJson } from "./Modal";
@@ -40,7 +41,7 @@ export function ContactForm({ initial, owners, organizations, defaultOwner }: {
   const section = (title: string, children: React.ReactNode) => (
     <fieldset className="border-t border-line pt-5">
       <legend className="eyebrow pr-3">{title}</legend>
-      <div className="mt-3 grid gap-4 sm:grid-cols-2">{children}</div>
+      <div className="mt-3 grid gap-4">{children}</div>
     </fieldset>
   );
   const prospect = v.contact_type !== "research_participant";
@@ -48,7 +49,7 @@ export function ContactForm({ initial, owners, organizations, defaultOwner }: {
 
   return (
     <form
-      className="max-w-3xl space-y-6 border border-line bg-white p-5 sm:p-6"
+      className="max-w-xl space-y-6 border border-line bg-white p-5 sm:p-6"
       onSubmit={async (e) => {
         e.preventDefault();
         setBusy(true); setError("");
@@ -56,6 +57,7 @@ export function ContactForm({ initial, owners, organizations, defaultOwner }: {
           const saved = editing
             ? await postJson(`/api/contacts/${initial!.id}`, v, "PATCH")
             : await postJson("/api/contacts", v);
+          toast(editing ? "Changes saved" : `${saved.name || "Contact"} added`);
           router.push(`/contacts/${saved.id}`);
           router.refresh();
         } catch (err) { setError((err as Error).message); setBusy(false); }
@@ -103,9 +105,9 @@ export function ContactForm({ initial, owners, organizations, defaultOwner }: {
       </fieldset>
 
       {error && <p className="text-sm text-coral">{error}</p>}
-      <div className="flex gap-2 border-t border-line pt-5">
-        <button className="btn btn-primary" disabled={busy}>{busy && <Spinner />}{busy ? "Saving…" : editing ? "Save changes" : "Add contact"}</button>
+      <div className="flex justify-end gap-2 border-t border-line pt-5">
         <button type="button" className="btn" onClick={() => router.back()}>Cancel</button>
+        <button className="btn btn-primary" disabled={busy}>{busy && <Spinner />}{busy ? "Saving…" : editing ? "Save changes" : "Add contact"}</button>
       </div>
     </form>
   );

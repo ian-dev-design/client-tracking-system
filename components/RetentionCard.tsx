@@ -1,11 +1,25 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { postJson } from "./Modal";
 import { formatDate } from "@/lib/util";
-import { ContactActions } from "./ContactActions";
+import Link from "next/link";
+import { DraftOutreachModal } from "./DraftOutreach";
+import { LogInteractionModal } from "./LogInteraction";
+import { MoreMenu } from "./ProfileActions";
+import { MENU_ITEM } from "./Widgets";
+
+/** The one primary action on a retention card. */
+function DraftCheckIn({ contactId, testRedirect }: { contactId: string; testRedirect?: string }) {
+  const [open, setOpen] = useState(false);
+  return (<>
+    <button className="btn btn-sm btn-primary" onClick={() => setOpen(true)}>Draft check-in</button>
+    {open && <DraftOutreachModal contactIds={[contactId]} testRedirect={testRedirect} onClose={() => setOpen(false)} />}
+  </>);
+}
+
+
 import { MoveButton } from "./Widgets";
 
 export type RetentionView = {
@@ -20,6 +34,7 @@ export function RetentionCard({ item, testRedirect }: { item: RetentionView; tes
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [notes, setNotes] = useState(item.notes);
+  const [logOpen, setLogOpen] = useState(false); // lives here, not in the ⋯ menu, so the popup survives the menu closing
   const quiet = item.daysQuiet === null || item.daysQuiet >= 30;
   const save = async (body: Record<string, string>) => {
     setBusy(true);
@@ -56,10 +71,16 @@ export function RetentionCard({ item, testRedirect }: { item: RetentionView; tes
           onBlur={() => notes !== item.notes && save({ notes })} />
       </div>
 
-      <div className="mt-3 flex flex-wrap gap-1.5 border-t border-line pt-3">
-        <ContactActions contact={c} size="sm" show={["draft", "log"]} testRedirect={testRedirect} />
-        <MoveButton contactId={c.id} name={c.name} to="churn" size="sm" />
+      <div className="mt-3 flex items-center justify-between gap-2 border-t border-line pt-3">
+        <DraftCheckIn contactId={c.id} testRedirect={testRedirect} />
+        <MoreMenu label={`More actions for ${c.name}`} width="w-48">
+          <Link className={MENU_ITEM} href={`/contacts/${c.id}`}>Open profile</Link>
+          <button className={MENU_ITEM} onClick={() => setLogOpen(true)}>Log interaction</button>
+          <div className="my-1 border-t border-line" />
+          <MoveButton variant="menu" contactId={c.id} name={c.name} to="churn" />
+        </MoreMenu>
       </div>
+      {logOpen && <LogInteractionModal contact={c} onClose={() => setLogOpen(false)} />}
     </div>
   );
 }

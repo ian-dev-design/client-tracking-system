@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { postJson } from "./Modal";
 import { Spinner } from "./ui";
+import { toast } from "./Toast";
 
 type S = { assign_email: boolean; urgent_email: boolean; digest_email: boolean; digest_day: string };
 const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
@@ -32,7 +33,7 @@ export function NotificationSettingsForm({ initial }: { initial: S }) {
   const set = (k: keyof S) => (v: boolean | string) => { setS({ ...s, [k]: v }); setMsg(""); };
   const save = async () => {
     setBusy(true); setMsg("");
-    try { await postJson("/api/settings/notifications", s); setMsg("Saved"); router.refresh(); }
+    try { await postJson("/api/settings/notifications", s); setMsg(""); toast("Notification settings saved"); router.refresh(); }
     catch (e) { setMsg((e as Error).message); } finally { setBusy(false); }
   };
   return (

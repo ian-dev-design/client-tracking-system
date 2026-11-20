@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { loadAll, onboardingProgress } from "@/lib/crm";
 import { ONBOARDING_STEPS } from "@/lib/data";
 import { daysSince, isTrue } from "@/lib/util";
@@ -36,7 +37,8 @@ export default async function OnboardingPage({ searchParams }: { searchParams: P
       <FilterBar owners={owners(contacts)} show={["owner"]} />
       {items.length
         ? <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">{items.map((i) => <OnboardingCard key={i.id} item={i} />)}</div>
-        : <Empty>No one is onboarding. Use &ldquo;Start onboarding&rdquo; on a qualified contact or /start-onboarding.</Empty>}
+        : <Empty>No one is onboarding yet. Move a qualified client here from the Outreach board.
+          <Link href="/board" className="btn btn-sm ml-2">Open Outreach board</Link></Empty>}
     </>
   );
 }

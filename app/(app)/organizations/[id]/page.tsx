@@ -49,7 +49,7 @@ export default async function Organization({ params }: { params: Promise<{ id: s
                   );
                 })}
               </ul>
-            ) : <p className="muted">No one linked yet.</p>}
+            ) : <p className="muted">No one linked yet. <Link href="/contacts/new" className="link">+ Add a contact</Link> with this organization name.</p>}
           </section>
         </div>
         <section className="lg:col-span-2">

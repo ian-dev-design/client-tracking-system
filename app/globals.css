@@ -63,7 +63,9 @@ body {
   .link { @apply text-forest underline decoration-forest/30 underline-offset-2 hover:decoration-forest; }
   .chip { @apply inline-flex items-center rounded-xs bg-wash px-1.5 py-0.5 text-xs font-medium text-ink; }
   .table { @apply w-full text-left text-sm; }
-  .table th { @apply border-b border-line px-4 py-3 text-[11px] font-semibold uppercase tracking-[0.08em] text-muted; }
+  /* Tables live in .table-wrap, which scrolls itself so the header row can stay put. */
+  .table-wrap { @apply relative max-h-[calc(100vh-15rem)] overflow-auto border border-line bg-white; }
+  .table th { @apply sticky top-0 z-10 border-b border-line bg-white px-4 py-3 text-[11px] font-semibold uppercase tracking-[0.08em] whitespace-nowrap text-muted; }
   .table td { @apply border-b border-line px-4 py-3.5 align-top; }
   .table tr:last-child td { @apply border-b-0; }
   .table tbody tr { @apply transition-colors hover:bg-surface; }

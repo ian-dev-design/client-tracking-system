@@ -34,22 +34,33 @@ export default async function InterviewLibrary({ searchParams }: { searchParams:
         { name: "purpose", label: "All purposes", options: [...INTERVIEW_PURPOSES] },
       ]} />
       {rows.length ? (
-        <div className="space-y-3">
-          {rows.map(({ iv, p }) => (
-            <Link key={iv.id} href={`/contacts/${iv.contact_id}`} className="card block p-4 hover:border-line">
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="font-medium">{p?.name || "Unknown"}</span>
-                <span className="text-sm text-muted">{[p?.role, p?.company].filter(Boolean).join(" · ")}</span>
-                <span className="chip">{iv.purpose.replace("_", " ")}</span>
-                {iv.extraction_status === "pending" && <span className="chip bg-sand/20 text-ink">findings pending</span>}
-                <span className="ml-auto text-xs text-faint">{formatDate(iv.date)}</span>
-              </div>
-              <p className="mt-1.5 line-clamp-2 text-sm text-muted">{iv.summary || "No summary yet."}</p>
-              <div className="mt-2 flex flex-wrap gap-1">{splitList(iv.themes).map((t) => <span key={t} className="chip">{t}</span>)}</div>
-            </Link>
-          ))}
+        <div className="table-wrap">
+          <table className="table">
+            <thead><tr><th>Person</th><th>Date</th><th>Summary</th><th>Themes</th><th>Purpose</th></tr></thead>
+            <tbody>
+              {rows.map(({ iv, p }) => (
+                <tr key={iv.id}>
+                  <td className="max-w-[14rem]">
+                    <Link href={`/contacts/${iv.contact_id}?tab=research`} className="font-semibold hover:underline">{p?.name || "Unknown"}</Link>
+                    <div className="truncate text-xs text-muted">{[p?.role, p?.company].filter(Boolean).join(" · ") || "—"}</div>
+                  </td>
+                  <td className="whitespace-nowrap">{formatDate(iv.date)}</td>
+                  <td className="min-w-[16rem] max-w-md">
+                    <p className="line-clamp-2 text-muted">{iv.summary || "No summary yet."}</p>
+                    {iv.extraction_status === "pending" && <span className="chip mt-1 bg-sand/20 text-ink">Findings pending</span>}
+                  </td>
+                  <td><div className="flex max-w-[14rem] flex-wrap gap-1">{splitList(iv.themes).map((t) => (
+                    <Link key={t} href={`/research/library?theme=${encodeURIComponent(t)}`} className="chip hover:bg-line">{t}</Link>
+                  ))}</div></td>
+                  <td className="whitespace-nowrap text-muted">{iv.purpose.replace("_", " ")}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
-      ) : <Empty>No interviews yet. Add one from a contact&apos;s profile or with /log-interview.</Empty>}
+      ) : interviews.length ? (
+        <Empty>No interviews match. <Link href="/research/library" className="link">Clear filters</Link></Empty>
+      ) : <Empty>No interviews yet. Add one from a contact&apos;s profile (⋯ → Add interview) or with /log-interview.</Empty>}
     </>
   );
 }

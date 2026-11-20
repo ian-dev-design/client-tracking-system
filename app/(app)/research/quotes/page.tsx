@@ -33,7 +33,7 @@ export default async function QuotesWall({ searchParams }: { searchParams: Promi
             </figure>
           ))}
         </div>
-      ) : <Empty>No quotes match.</Empty>}
+      ) : <Empty>No quotes match. <Link href="/research/quotes" className="link">Clear filters</Link></Empty>}
     </>
   );
 }

@@ -5,6 +5,10 @@ import { useRouter } from "next/navigation";
 import { postJson } from "./Modal";
 import { Spinner } from "./ui";
 import { DraftOutreachModal } from "./DraftOutreach";
+import { toast } from "./Toast";
+
+/** Menu-item look for actions placed inside a "⋯" menu. */
+export const MENU_ITEM = "block w-full px-3 py-1.5 text-left text-sm text-ink hover:bg-surface disabled:text-faint";
 
 /** Inline stage / research-status picker on the profile. */
 export function StatusSelect({ contactId, field, value, options }: {
@@ -26,8 +30,9 @@ export function StatusSelect({ contactId, field, value, options }: {
           body.lost_reason = reason;
         }
         setBusy(true);
-        await postJson(`/api/contacts/${contactId}`, body, "PATCH").catch((err) => alert(err.message));
+        const ok = await postJson(`/api/contacts/${contactId}`, body, "PATCH").then(() => true, (err) => { alert(err.message); return false; });
         setBusy(false);
+        if (ok) toast(`Moved to ${next}`);
         router.refresh();
       }}
     >
@@ -37,20 +42,22 @@ export function StatusSelect({ contactId, field, value, options }: {
   );
 }
 
-export function ActionButton({ url, body, label, method = "PATCH", confirmText }: {
+export function ActionButton({ url, body, label, method = "PATCH", confirmText, doneText = "Done", variant = "button" }: {
   url: string; body: Record<string, unknown>; label: string; method?: string; confirmText?: string;
+  doneText?: string; variant?: "button" | "menu";
 }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   return (
     <button
-      className="btn"
+      className={variant === "menu" ? MENU_ITEM : "btn"}
       disabled={busy}
       onClick={async () => {
         if (confirmText && !confirm(confirmText)) return;
         setBusy(true);
-        await postJson(url, body, method).catch((e) => alert(e.message));
+        const ok = await postJson(url, body, method).then(() => true, (e) => { alert(e.message); return false; });
         setBusy(false);
+        if (ok) toast(doneText);
         router.refresh();
       }}
     >
@@ -66,8 +73,9 @@ export function UnmatchedActions({ responseKey, contacts }: { responseKey: strin
   const [busy, setBusy] = useState(false);
   const go = async (body: Record<string, unknown>) => {
     setBusy(true);
-    await postJson("/api/surveys/link", { key: responseKey, ...body }).catch((e) => alert(e.message));
+    const ok = await postJson("/api/surveys/link", { key: responseKey, ...body }).then(() => true, (e) => { alert(e.message); return false; });
     setBusy(false);
+    if (ok) toast(body.create ? "Contact created and survey linked" : "Survey linked");
     router.refresh();
   };
   return (
@@ -100,24 +108,27 @@ const MOVES = {
     confirm: (name: string) => `Move ${name} to Onboarding?\n\nThis creates their checklist and saves a welcome email in Drafts for you to review. Nothing is sent.`,
     body: () => ({ action: "start_onboarding" }),
     cls: "btn-primary",
+    done: "Moved to Onboarding",
   },
   active: {
     label: "→ Move to Active / Retention",
     confirm: (name: string) => `Onboarding done? Move ${name} to Active / Retention.`,
     body: () => ({ stage: "Active / Retention" }),
     cls: "btn-primary",
+    done: "Moved to Active / Retention",
   },
   churn: {
     label: "Mark as churned",
     confirm: () => "",
     body: () => ({ stage: "Churned / Lost" }),
     cls: "btn-danger",
+    done: "Marked as churned",
   },
 };
 
 /** Moves a client to the next part of the journey. Every move is logged with who made it. */
-export function MoveButton({ contactId, name, to, size = "md" }: {
-  contactId: string; name: string; to: keyof typeof MOVES; size?: "sm" | "md";
+export function MoveButton({ contactId, name, to, size = "md", variant = "button" }: {
+  contactId: string; name: string; to: keyof typeof MOVES; size?: "sm" | "md"; variant?: "button" | "menu";
 }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
@@ -130,12 +141,13 @@ export function MoveButton({ contactId, name, to, size = "md" }: {
       body.lost_reason = reason.trim();
     } else if (!confirm(m.confirm(name))) return;
     setBusy(true);
-    await postJson(`/api/contacts/${contactId}`, body, "PATCH").catch((e) => alert(e.message));
+    const ok = await postJson(`/api/contacts/${contactId}`, body, "PATCH").then(() => true, (e) => { alert(e.message); return false; });
     setBusy(false);
+    if (ok) toast(m.done);
     router.refresh();
   };
   return (
-    <button className={`btn ${size === "sm" ? "btn-sm" : ""} ${m.cls}`} disabled={busy}
+    <button className={variant === "menu" ? MENU_ITEM : `btn ${size === "sm" ? "btn-sm" : ""} ${m.cls}`} disabled={busy}
       onPointerDown={(e) => e.stopPropagation()} onClick={(e) => { e.stopPropagation(); go(); }}>
       {busy && <Spinner />}{m.label}
     </button>

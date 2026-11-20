@@ -8,6 +8,7 @@ import { useRouter } from "next/navigation";
 import { formatDate } from "@/lib/util";
 import { Modal, postJson } from "./Modal";
 import { Spinner } from "./ui";
+import { toast } from "./Toast";
 import type { TeamClientCard, TeamColumn, TeamTaskCard } from "./TeamBoard";
 
 export function HandOffButton({ columns, tasks, clients }: { columns: TeamColumn[]; tasks: TeamTaskCard[]; clients: TeamClientCard[] }) {
@@ -46,6 +47,7 @@ function HandOffModal({ columns, tasks, clients, onClose }: {
         from, to, confirmed: true, taskIds: moveTasks.map((t) => t.id), contactIds: moveClients.map((c) => c.id),
       });
       setDone(res);
+      toast(`Handed off to ${label(to)}`);
       router.refresh();
     } catch (e) { setError((e as Error).message); } finally { setBusy(false); }
   };
@@ -57,14 +59,14 @@ function HandOffModal({ columns, tasks, clients, onClose }: {
           Moved {done.tasks} task{done.tasks === 1 ? "" : "s"} and {done.clients} client{done.clients === 1 ? "" : "s"} from {label(from)} to {label(to)}.
           It&apos;s logged on each client&apos;s timeline.
         </p>
-        <button className="btn btn-primary mt-4" onClick={onClose}>Done</button>
+        <div className="mt-4 flex justify-end"><button className="btn btn-primary" onClick={onClose}>Done</button></div>
       </Modal>
     );
   }
 
   return (
     <Modal title="Hand off work" onClose={onClose} wide>
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid gap-4">
         <div><label className="label" htmlFor="ho-from">Move from</label>
           <select id="ho-from" className="input" value={from} onChange={(e) => { setFrom(e.target.value); if (e.target.value === to) setTo(""); }}>
             {fromOptions.map((c) => <option key={c.key || "_u"} value={c.key}>{c.label}</option>)}

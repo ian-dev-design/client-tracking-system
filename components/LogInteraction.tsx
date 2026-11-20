@@ -1,5 +1,6 @@
 "use client";
 
+import { toast } from "./Toast";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Modal, postJson } from "./Modal";
@@ -34,12 +35,13 @@ export function LogInteractionModal({ contact, onClose }: {
           setBusy(true); setError("");
           try {
             await postJson("/api/interactions", { contact_id: contact.id, ...form });
+            toast("Interaction logged");
             router.refresh();
             onClose();
           } catch (err) { setError((err as Error).message); } finally { setBusy(false); }
         }}
       >
-        <div className="grid gap-3 sm:grid-cols-3">
+        <div className="grid gap-4">
           <div><label className="label">Type</label>
             <select className="input" value={form.type} onChange={(e) => set("type", e.target.value)}>
               {INTERACTION_TYPES.map((t) => <option key={t}>{t}</option>)}
@@ -53,7 +55,7 @@ export function LogInteractionModal({ contact, onClose }: {
         </div>
         <div><label className="label">What happened?</label>
           <textarea required className="input min-h-24" value={form.summary} onChange={(e) => set("summary", e.target.value)} /></div>
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="grid gap-4">
           {prospect && <div><label className="label">Move stage (optional)</label>
             <select className="input" value={form.stage} onChange={(e) => set("stage", e.target.value)}>
               <option value="">Keep: {contact.stage || "—"}</option>

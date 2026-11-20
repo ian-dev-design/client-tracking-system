@@ -1,5 +1,6 @@
 "use client";
 
+import { toast } from "./Toast";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { SITE_CONFIG } from "@/lib/target";
@@ -34,11 +35,12 @@ function SiteModal({ organizationId, site, onClose }: { organizationId: string; 
         try {
           if (site) await postJson(`/api/sites/${site.id}`, v, "PATCH");
           else await postJson("/api/sites", { ...v, organization_id: organizationId });
+          toast("Site saved");
           router.refresh();
           onClose();
         } catch (err) { setError((err as Error).message); setBusy(false); }
       }}>
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="grid gap-4">
           <div className="sm:col-span-2"><label className="label">Site name *</label>
             <input className="input" required value={v.name || ""} onChange={set("name")} /></div>
           <div className="sm:col-span-2"><label className="label">Address</label>

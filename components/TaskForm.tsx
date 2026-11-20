@@ -6,6 +6,7 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Modal, postJson } from "./Modal";
 import { Spinner } from "./ui";
+import { toast } from "./Toast";
 
 export type ClientOption = { id: string; name: string; company: string };
 export type TaskInput = Record<string, string | undefined>; // id, title, contact_id, due_date, assigned_to, notes
@@ -74,6 +75,7 @@ export function TaskFormModal({ task, clients, people, defaultAssignee, onClose 
     try {
       if (editing) await postJson(`/api/tasks/${task!.id}`, form, "PATCH");
       else await postJson("/api/tasks", form);
+      toast(editing ? "Task saved" : `Task added${form.assigned_to && form.assigned_to !== defaultAssignee ? ` for ${form.assigned_to}` : ""}`);
       router.refresh();
       onClose();
     } catch (err) { setError((err as Error).message); setBusy(false); }
@@ -87,7 +89,7 @@ export function TaskFormModal({ task, clients, people, defaultAssignee, onClose 
             placeholder="e.g. Send the site visit quote" /></div>
         <div><span className="label">Client</span>
           <ClientPicker clients={clients} value={form.contact_id} onChange={set("contact_id")} /></div>
-        <div className="grid gap-4 sm:grid-cols-3">
+        <div className="grid gap-4">
           <div><label className="label" htmlFor="task-due">Due date</label>
             <input id="task-due" className="input" type="date" value={form.due_date} onChange={(e) => set("due_date")(e.target.value)} /></div>
           <div><label className="label" htmlFor="task-who">Assignee</label>

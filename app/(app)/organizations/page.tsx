@@ -29,9 +29,9 @@ export default async function Organizations({ searchParams }: { searchParams: Pr
       </PageHeader>
       <FilterBar owners={[]} show={[]} extra={[{ name: "type", label: "All types", options: types }]} />
       {rows.length ? (
-        <div className="relative overflow-x-auto border border-line bg-white">
+        <div className="table-wrap">
           <table className="table">
-            <thead><tr><th>Organization</th><th>Type</th><th>People</th><th>Sites</th><th className="text-right">Open deals</th></tr></thead>
+            <thead><tr><th>Organization</th><th className="text-right">Open deals</th><th>People</th><th>Sites</th><th>Type</th></tr></thead>
             <tbody>
               {rows.map(({ o, people, sites, open }) => (
                 <tr key={o.id}>
@@ -39,16 +39,20 @@ export default async function Organizations({ searchParams }: { searchParams: Pr
                     <Link href={`/organizations/${o.id}`} className="font-semibold hover:underline">{o.name}</Link>
                     {o.address && <div className="truncate text-xs text-muted" title={o.address}>{o.address}</div>}
                   </td>
-                  <td className="text-muted">{o.type || "—"}</td>
-                  <td>{people.map((p) => p.name).join(", ") || <span className="text-faint">—</span>}</td>
-                  <td className="tabular-nums">{sites}</td>
                   <td className="text-right tabular-nums">{open ? money(open) : <span className="text-faint">—</span>}</td>
+                  <td>{people.length ? people.map((p, i) => <span key={p.id}>{i > 0 && ", "}<Link href={`/contacts/${p.id}`} className="hover:underline">{p.name}</Link></span>) : <span className="text-faint">—</span>}</td>
+                  <td className="tabular-nums text-muted">{sites}</td>
+                  <td className="text-muted">{o.type || "—"}</td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
-      ) : <Empty>No organizations yet. They&rsquo;re created automatically when you add a contact with an organization name.</Empty>}
+      ) : organizations.length ? (
+        <Empty>No organizations match. <Link href="/organizations" className="link">Clear filters</Link></Empty>
+      ) : (
+        <Empty>No organizations yet. They&rsquo;re created when you add a contact with an organization name, or <OrgButton primary /></Empty>
+      )}
     </>
   );
 }

@@ -1,5 +1,6 @@
 "use client";
 
+import { toast } from "./Toast";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { target } from "@/lib/target";
@@ -35,6 +36,7 @@ function OrgModal({ org, onClose }: { org?: Record<string, string>; onClose: () 
         try {
           const saved = org ? await postJson(`/api/organizations/${org.id}`, v, "PATCH") : await postJson("/api/organizations", v);
           if (!org) router.push(`/organizations/${saved.id}`);
+          toast("Organization saved");
           router.refresh();
           onClose();
         } catch (err) { setError((err as Error).message); setBusy(false); }

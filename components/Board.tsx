@@ -100,7 +100,7 @@ function Column({ stage, index, count, value, shade, children }: {
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: stage });
   return (
-    <div ref={setNodeRef} className={`flex min-w-48 flex-col ${count ? "w-60 flex-1" : "w-44 flex-[0.7]"}`}>
+    <div ref={setNodeRef} className={`flex shrink-0 flex-col ${count ? "w-64 min-w-60 flex-1" : "w-44 min-w-40 flex-[0.6]"}`}>
       <div className={`mb-3 flex h-10 items-center justify-between gap-2 pr-5 ${index ? "pl-5" : "pl-3"}`}
         style={{ background: shade.bg, color: shade.fg, clipPath: CHEVRON(index === 0) }}>
         <span className="truncate text-[11px] font-semibold uppercase tracking-[0.08em]">{stage}</span>

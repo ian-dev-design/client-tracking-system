@@ -1,5 +1,6 @@
 "use client";
 
+import { toast } from "./Toast";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Modal, postJson } from "./Modal";
@@ -39,6 +40,7 @@ export function DraftOutreachModal({ contactIds, testRedirect, onClose }: {
 
   const next = (message: string) => {
     setDone((d) => [...d, message]);
+    toast(message);
     router.refresh();
     if (index + 1 < contactIds.length) { setIndex(index + 1); setPurpose(""); } else setIndex(contactIds.length);
   };
@@ -100,12 +102,12 @@ export function DraftOutreachModal({ contactIds, testRedirect, onClose }: {
             <textarea className="input min-h-56 font-[inherit]" value={draft.body} onChange={(e) => setDraft({ ...draft, body: e.target.value })} />
           </div>
           {error && <p className="text-sm text-coral">{error}</p>}
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-wrap items-center justify-end gap-2 border-t border-line pt-4">
+            {!draft.to && <span className="mr-auto text-xs text-muted">No email address on file. Use the short version below.</span>}
+            {contactIds.length > 1 && <button className="btn" onClick={skip} disabled={busy}>Skip</button>}
             <button className="btn btn-primary" disabled={busy || !draft.to} onClick={send}>
               {busy && <Spinner />}{busy ? "Sending…" : <>Approve &amp; send from my Gmail</>}
             </button>
-            {!draft.to && <span className="text-xs text-muted">No email address on file. Use the short version below.</span>}
-            {contactIds.length > 1 && <button className="btn" onClick={skip} disabled={busy}>Skip</button>}
           </div>
 
           <div className="border-t border-line pt-4">

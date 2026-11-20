@@ -1,5 +1,6 @@
 "use client";
 
+import { toast } from "./Toast";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Modal } from "./Modal";
@@ -25,7 +26,7 @@ export function AddInterviewModal({ contact, aiEnabled, onClose }: {
             ? "Summary, pain points, quotes and themes were extracted."
             : "Findings are pending. Run /log-interview in Claude Code to extract the summary, quotes and themes."}
         </p>
-        <button className="btn btn-primary mt-4" onClick={onClose}>Done</button>
+        <div className="mt-4 flex justify-end"><button className="btn btn-primary" onClick={onClose}>Done</button></div>
       </Modal>
     );
   }
@@ -44,11 +45,12 @@ export function AddInterviewModal({ contact, aiEnabled, onClose }: {
             const json = await res.json();
             if (!res.ok) throw new Error(json.error || "Upload failed");
             setResult(json);
+            toast("Interview saved");
             router.refresh();
           } catch (err) { setError((err as Error).message); } finally { setBusy(false); }
         }}
       >
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="grid gap-4">
           <div><label className="label">Interview date</label>
             <input name="date" type="date" required defaultValue={today} className="input" /></div>
           <div><label className="label">Purpose</label>

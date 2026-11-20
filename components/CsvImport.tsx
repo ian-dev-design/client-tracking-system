@@ -83,7 +83,7 @@ export function CsvImport() {
             </button>
           </div>
           {ignored.length > 0 && <p className="mb-3 text-xs text-muted">Columns not imported: {ignored.join(", ")}</p>}
-          <div className="overflow-x-auto border border-line bg-white">
+          <div className="table-wrap">
             <table className="table">
               <thead><tr><th>Name</th><th>Email</th><th>Organization</th><th>Result</th></tr></thead>
               <tbody>

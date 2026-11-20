@@ -14,6 +14,7 @@ import { TaskFormModal, type ClientOption } from "./TaskForm";
 import { HandOffButton } from "./HandOff";
 import { NewTaskButton } from "./TaskForm";
 import { UrgentTag } from "./TaskList";
+import { toast } from "./Toast";
 
 export type TeamTaskCard = {
   id: string; title: string; who: string; due_date: string; overdue: boolean; notes: string; priority: string; urgent: boolean;
@@ -124,14 +125,14 @@ export function TeamBoard({ view, columns, tasks, clients, clientOptions, people
       if (!card || card.who === to) return;
       const before = taskCards;
       setTaskCards(taskCards.map((t) => (t.id === id ? { ...t, who: to, assigned_to: to } : t)));
-      try { await postJson(`/api/tasks/${id}`, { assigned_to: to }, "PATCH"); router.refresh(); }
+      try { await postJson(`/api/tasks/${id}`, { assigned_to: to }, "PATCH"); toast(`Reassigned to ${to || "Unassigned"}`); router.refresh(); }
       catch (e) { setTaskCards(before); setError((e as Error).message); }
     } else {
       const card = clientCards.find((c) => c.id === id);
       if (!card || card.who === to || !to) return;
       const before = clientCards;
       setClientCards(clientCards.map((c) => (c.id === id ? { ...c, who: to } : c)));
-      try { await postJson(`/api/contacts/${id}`, { owner: to }, "PATCH"); router.refresh(); }
+      try { await postJson(`/api/contacts/${id}`, { owner: to }, "PATCH"); toast(`${card.name} now owned by ${to}`); router.refresh(); }
       catch (e) { setClientCards(before); setError((e as Error).message); }
     }
   };

@@ -2,7 +2,7 @@ import Link from "next/link";
 import { loadAll } from "@/lib/crm";
 import { daysLabel, filterContacts, isDueToday, isOverdue, lastTouch, owners, params } from "@/lib/views";
 import { FilterBar } from "@/components/FilterBar";
-import { ContactActions } from "@/components/ContactActions";
+import { ContactRowMenu } from "@/components/ProfileActions";
 import { Empty, PageHeader, StageBadge, TypeBadge } from "@/components/ui";
 import { formatDate } from "@/lib/util";
 import { money } from "@/lib/target";
@@ -34,12 +34,12 @@ export default async function ContactsPage({ searchParams }: { searchParams: Pro
       )}
       <FilterBar owners={owners(contacts)} />
       {rows.length ? (
-        <div className="relative overflow-x-auto border border-line bg-white">
+        <div className="table-wrap">
           <table className="table">
             <thead>
               <tr>
-                <th>Name</th><th>Stage / status</th><th className="text-right">Deal</th>
-                {manyOwners && <th>Owner</th>}<th>Last touch</th><th>Follow-up</th><th><span className="sr-only">Actions</span></th>
+                <th>Name</th><th>Stage / status</th><th>Follow-up</th><th className="text-right">Deal</th>
+                {manyOwners && <th>Owner</th>}<th>Last touch</th><th><span className="sr-only">Actions</span></th>
               </tr>
             </thead>
             <tbody>
@@ -53,26 +53,25 @@ export default async function ContactsPage({ searchParams }: { searchParams: Pro
                     <div className="mt-0.5"><TypeBadge value={c.contact_type} /></div>
                   </td>
                   <td><div className="flex flex-col gap-1"><StageBadge value={c.stage} /><StageBadge value={c.research_status} track="research" /></div></td>
+                  <td className={`whitespace-nowrap ${isOverdue(c) ? "font-semibold text-coral" : "text-ink"}`}>{formatDate(c.next_followup_date)}</td>
                   <td className="text-right tabular-nums">
                     {c.deal_value ? money(c.deal_value) : <span className="text-faint">—</span>}
                     {c.deal_status === "won" && <div className="text-[11px] font-semibold uppercase tracking-wide text-forest">Won</div>}
                     {c.deal_status === "lost" && <div className="text-[11px] font-semibold uppercase tracking-wide text-coral">Lost</div>}
                   </td>
-                  {manyOwners && <td>{c.owner}</td>}
+                  {manyOwners && <td className="text-muted">{c.owner}</td>}
                   <td className="whitespace-nowrap text-muted">{daysLabel(lastTouch(c.id, interactions))}</td>
-                  <td className={`whitespace-nowrap ${isOverdue(c) ? "font-semibold text-coral" : "text-muted"}`}>{formatDate(c.next_followup_date)}</td>
-                  <td className="w-px">
-                    {/* actions appear on row hover (always visible on touch screens) */}
-                    <div className="opacity-100 transition-opacity md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100">
-                      <ContactActions contact={c} size="sm" show={["draft", "log"]} testRedirect={process.env.EMAIL_TEST_REDIRECT} />
-                    </div>
-                  </td>
+                  <td className="w-px"><ContactRowMenu contact={c} testRedirect={process.env.EMAIL_TEST_REDIRECT} /></td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
-      ) : <Empty>No contacts match. Try clearing the filters.</Empty>}
+      ) : contacts.length ? (
+        <Empty>No contacts match these filters. <Link href="/contacts" className="link">Clear filters</Link></Empty>
+      ) : (
+        <Empty>No contacts yet. <Link href="/contacts/new" className="btn btn-primary btn-sm ml-2">+ Add your first contact</Link></Empty>
+      )}
     </>
   );
 }

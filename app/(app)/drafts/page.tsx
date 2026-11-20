@@ -37,7 +37,8 @@ export default async function DraftsPage() {
             );
           })}
         </div>
-      ) : <Empty>No drafts waiting. Run /outreach in Claude Code to create some, or use Draft outreach on any contact.</Empty>}
+      ) : <Empty>No drafts waiting. Run /outreach in Claude Code, or draft one from any contact.
+          <Link href="/board" className="btn btn-sm ml-2">Open Outreach board</Link></Empty>}
     </>
   );
 }

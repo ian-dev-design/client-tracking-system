@@ -7,6 +7,7 @@ import { formatDate, isTrue, isUrgent } from "@/lib/util";
 import { postJson } from "./Modal";
 import { TaskFormModal, type ClientOption } from "./TaskForm";
 import { Spinner } from "./ui";
+import { toast } from "./Toast";
 
 export type TaskRow = Record<string, string> & { contact_name?: string };
 
@@ -28,7 +29,11 @@ export function TaskList({ tasks, clients, people, me, showContact = false, empt
 
   const patch = async (t: TaskRow, body: Record<string, string>) => {
     setBusyId(t.id); setError("");
-    try { await postJson(`/api/tasks/${t.id}`, body, "PATCH"); router.refresh(); }
+    try {
+      await postJson(`/api/tasks/${t.id}`, body, "PATCH");
+      toast(body.assigned_to !== undefined ? `Reassigned to ${body.assigned_to || "Unassigned"}` : body.done ? "Marked done" : "Reopened");
+      router.refresh();
+    }
     catch (e) { setError((e as Error).message); } finally { setBusyId(""); }
   };
 

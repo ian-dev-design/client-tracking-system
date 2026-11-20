@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { loadAll } from "@/lib/crm";
 import { RETENTION_SIGNALS } from "@/lib/data";
 import { daysSince, formatDate, isTrue } from "@/lib/util";
@@ -28,7 +29,8 @@ export default async function Retention({ searchParams }: { searchParams: Promis
       <FilterBar owners={owners(contacts)} show={owners(contacts).length > 1 ? ["owner"] : []} />
       {items.length
         ? <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">{items.map((i) => <RetentionCard key={i.contact.id} item={i} testRedirect={process.env.EMAIL_TEST_REDIRECT} />)}</div>
-        : <Empty>No active customers yet. Use &ldquo;Move to Active / Retention&rdquo; on an onboarding client.</Empty>}
+        : <Empty>No active customers yet. When onboarding is done, move the client to Active / Retention.
+          <Link href="/onboarding" className="btn btn-sm ml-2">Open Onboarding</Link></Empty>}
     </>
   );
 }
