@@ -3,7 +3,7 @@ import { loadAll } from "@/lib/crm";
 import { RANGES, funnel, onboardingSpeed, rangeKey, retention } from "@/lib/insights";
 import { journey } from "@/lib/journey";
 import { params } from "@/lib/views";
-import { Donut, FunnelBars, HBars, LineChart } from "@/components/charts";
+import { Donut, FunnelBars, HBars, LineChart, MonthBars } from "@/components/charts";
 import { PageHeader, SectionHead } from "@/components/ui";
 
 /** One plain-language line under a chart. */
@@ -40,7 +40,7 @@ export default async function Insights({ searchParams }: { searchParams: Promise
       {/* Outreach funnel */}
       <section id="outreach" className="scroll-mt-6">
         <SectionHead title="Outreach conversion" href="/board" linkText="Outreach board →" />
-        <p className="-mt-2 mb-5 text-xs text-muted">Contacts added in the last {label}. A contact counts at every step up to the furthest stage they ever reached.</p>
+        <p className="-mt-2 mb-5 text-xs text-muted">People first contacted in the last {label}. Someone counts at every step up to the furthest one they ever reached.</p>
         {f.enough ? (
           <div className="max-w-3xl">
             <div className="mb-2 grid grid-cols-[8.5rem_1fr_8.5rem] gap-3 text-[11px] uppercase tracking-[0.08em] text-faint">
@@ -74,6 +74,9 @@ export default async function Insights({ searchParams }: { searchParams: Promise
               <h3 className="label">Retention rate by month</h3>
               {r.points.length >= 2 ? <><LineChart points={r.monthly} color={journey("retention").hex} /><p className="mt-2 text-sm text-ink">{r.lineTakeaway}</p></>
                 : <p className="text-sm text-muted">Not enough data yet: needs at least two months with active clients.</p>}
+              <h3 className="label mt-6">Churned per month</h3>
+              <MonthBars months={r.monthly} color="#b84a2c" />
+              <p className="mt-2 text-sm text-ink">{r.churnTakeaway}</p>
             </div>
           </div>
         )}

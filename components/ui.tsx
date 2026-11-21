@@ -98,3 +98,18 @@ export function Avatar({ name, size = "md" }: { name: string; size?: "sm" | "md"
   const dim = size === "sm" ? "h-5 w-5 text-[9px]" : "h-8 w-8 text-[11px]";
   return <span className={`inline-flex shrink-0 items-center justify-center rounded-full border border-line bg-surface font-semibold text-muted ${dim}`}>{initials}</span>;
 }
+
+/**
+ * The urgency flag on a board card or row: red or amber dot + short text (e.g. "Overdue 2d", "Renewal in 12d").
+ * Red glows so it's obvious at a glance. Renders nothing when nothing is urgent.
+ */
+export function UrgencyFlag({ u, className = "" }: { u: { level: "red" | "amber"; text: string } | null | undefined; className?: string }) {
+  if (!u) return null;
+  const isRed = u.level === "red";
+  return (
+    <span className={`flex min-w-0 items-center gap-1.5 text-xs font-semibold ${isRed ? "text-coral" : "text-amber-ink"} ${className}`} title={u.text}>
+      <span className={`h-2 w-2 shrink-0 rounded-full bg-current ${isRed ? "text-urgent motion-safe:animate-glow" : "text-warn motion-safe:animate-glow-soft"}`} aria-hidden />
+      <span className="truncate">{u.text}</span>
+    </span>
+  );
+}

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { postJson } from "./Modal";
+import { Modal, postJson } from "./Modal";
 import { Spinner } from "./ui";
 import { DraftOutreachModal } from "./DraftOutreach";
 import { toast } from "./Toast";
@@ -126,14 +126,52 @@ const MOVES = {
   },
 };
 
+/**
+ * "Move to Onboarding": asks for handoff notes (what outreach learned) before moving, then opens the client's
+ * onboarding page so the notes are right there. Creates the onboarding row and a welcome draft; sends nothing.
+ */
+export function HandoffModal({ contactId, name, onClose }: { contactId: string; name: string; onClose: () => void }) {
+  const router = useRouter();
+  const [notes, setNotes] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const save = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setBusy(true); setError("");
+    try {
+      await postJson(`/api/contacts/${contactId}`, { action: "start_onboarding", handoff_notes: notes }, "PATCH");
+      toast(`${name} moved to Onboarding`);
+      router.push(`/onboarding/${contactId}`);
+    } catch (err) { setError((err as Error).message); setBusy(false); }
+  };
+  return (
+    <Modal title={`Move ${name} to Onboarding`} onClose={onClose}>
+      <form onSubmit={save} onPointerDown={(e) => e.stopPropagation()} onClick={(e) => e.stopPropagation()}>
+        <p className="mb-4 text-sm text-muted">They start in the first onboarding stage. A welcome email is saved in Drafts for you to review; nothing is sent.</p>
+        <label className="label" htmlFor="handoff-notes">Handoff notes</label>
+        <textarea id="handoff-notes" className="input min-h-28" value={notes} autoFocus onChange={(e) => setNotes(e.target.value)}
+          placeholder="What outreach learned: what was promised, key contacts, their goals…" />
+        <p className="mt-1 text-xs text-faint">Shown on their onboarding page. You can edit it there later.</p>
+        {error && <p className="mt-3 text-sm text-coral">{error}</p>}
+        <div className="mt-6 flex justify-end gap-2 border-t border-line pt-4">
+          <button type="button" className="btn" onClick={onClose}>Cancel</button>
+          <button className="btn btn-primary" disabled={busy}>{busy && <Spinner />}Move to Onboarding</button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
 /** Moves a client to the next part of the journey. Every move is logged with who made it. */
 export function MoveButton({ contactId, name, to, size = "md", variant = "button" }: {
   contactId: string; name: string; to: keyof typeof MOVES; size?: "sm" | "md"; variant?: "button" | "menu";
 }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
+  const [handoff, setHandoff] = useState(false);
   const m = MOVES[to];
   const go = async () => {
+    if (to === "onboarding") return setHandoff(true);
     const body: Record<string, string> = m.body();
     if (to === "churn") {
       const reason = prompt(`Why did ${name} churn? (required)`);
@@ -146,10 +184,11 @@ export function MoveButton({ contactId, name, to, size = "md", variant = "button
     if (ok) toast(m.done);
     router.refresh();
   };
-  return (
+  return (<>
     <button className={variant === "menu" ? MENU_ITEM : `btn ${size === "sm" ? "btn-sm" : ""} ${m.cls}`} disabled={busy}
       onPointerDown={(e) => e.stopPropagation()} onClick={(e) => { e.stopPropagation(); go(); }}>
       {busy && <Spinner />}{m.label}
     </button>
-  );
+    {handoff && <HandoffModal contactId={contactId} name={name} onClose={() => setHandoff(false)} />}
+  </>);
 }

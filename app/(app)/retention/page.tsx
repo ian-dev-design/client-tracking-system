@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { loadAll } from "@/lib/crm";
 import { healthSplit, retention } from "@/lib/insights";
-import { HEALTH_COLUMNS, RENEWAL_COLUMNS, clientHealth, daysToRenewal, renewalBucket, renewalValue } from "@/lib/retention";
+import { HEALTH_COLUMNS, RENEWAL_COLUMNS, clientHealth, daysToRenewal, nextStep, renewalBucket, renewalValue, renewedRecently } from "@/lib/retention";
+import { retentionUrgency } from "@/lib/urgency";
 import { daysSince, parseStamp } from "@/lib/util";
 import { filterContacts, owners, params } from "@/lib/views";
 import { Donut } from "@/components/charts";
@@ -30,8 +31,9 @@ export default async function Retention({ searchParams }: { searchParams: Promis
     return {
       id: c.id, name: c.name, company: c.company, owner: c.owner, stage: c.stage, research_status: c.research_status, contact_type: c.contact_type,
       daysQuiet: h.daysQuiet, renewalDate: c.renewal_date, daysToRenewal: daysToRenewal(c), value: renewalValue(c),
-      health: h.health, autoHealth: h.auto, manual: h.manual, reason: h.reason, bucket: renewalBucket(c),
+      health: h.health, autoHealth: h.auto, autoReason: h.autoReason, manual: h.manual, reason: h.reason, bucket: renewalBucket(c),
       churnReason: c.lost_reason, lastRenewed: (c.last_renewed_at || "").slice(0, 10),
+      urgency: retentionUrgency(c, tasks, h, daysToRenewal(c), renewedRecently(c)), nextStep: nextStep(c, tasks),
     };
   }).sort((a, b) => (a.daysToRenewal ?? 9999) - (b.daysToRenewal ?? 9999));
 
@@ -40,12 +42,13 @@ export default async function Retention({ searchParams }: { searchParams: Promis
   const year = new Date().getFullYear();
   const churnedThisYear = contacts.filter((c) => c.stage === "Churned / Lost" && wasClient(c.id) && parseStamp(churnedAt(c)).getFullYear() === year).length;
   const active = contacts.filter((c) => c.stage === "Active / Retention");
-  const renewSoon = active.filter((c) => renewalBucket(c) === "30").length;
+  const renewSoon = active.filter((c) => ["30", "overdue"].includes(renewalBucket(c))).length;
   const split = healthSplit(data);
 
   const columns = tab === "health"
     ? HEALTH_COLUMNS.map((h) => ({ key: h.key, label: h.label, dot: h.dot, hint: h.key === "green" ? "No healthy clients right now." : "Nobody here. Good." }))
-    : RENEWAL_COLUMNS.map((c) => ({ key: c.key, label: c.label, hint: c.key === "renewed" ? "Drag a client here when they renew." : c.key === "churned" ? "No one has churned in the last year." : "No renewals in this window." }));
+    : RENEWAL_COLUMNS.map((c) => ({ key: c.key, label: c.label, hint: c.key === "renewed" ? "Drag a client here when they renew."
+      : c.key === "churned" ? "No one has churned in the last year." : c.key === "overdue" ? "No overdue renewals. Good." : "No renewals in this window." }));
 
   return (
     <>

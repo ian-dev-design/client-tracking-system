@@ -97,7 +97,7 @@ export function buildSampleData(): { tables: Record<TableName, Row[]>; raw: stri
 
   // Tasks: several per contact are fine. "Jamie" shows a task assigned to a teammate.
   const task = (id: string, title: string, due: number, assigned_to: string, contact_id: string, done = false) =>
-    ({ id, title, due_date: d(due), assigned_to, contact_id, done: done ? "TRUE" : "", done_at: done ? ts(due) : "", created_by: "Ian", created_at: ts(-6), updated_at: ts(-1) });
+    ({ id, title, due_date: d(due), assigned_to, contact_id, done: done ? "TRUE" : "", done_at: done ? ts(due) : "", completed_at: done ? ts(due) : "", created_by: "Ian", created_at: ts(-6), updated_at: ts(-1) });
   const tasks: Row[] = [
     task("task_1", "Send grazing plan for the Fenwick Pond banks", 0, "Ian", "c_tom"),
     task("task_2", "Walk the greenway edge with Tom", 6, "Ian", "c_tom"),
@@ -232,7 +232,7 @@ export function buildSampleData(): { tables: Record<TableName, Row[]>; raw: stri
   return {
     tables: {
       contacts, interactions, surveys, interviews, transcripts, research_themes, onboarding, retention, organizations, sites, tasks,
-      email_templates, interview_guides, drafts: [], activity_log: [], notifications: [], notification_settings: [],
+      email_templates, interview_guides, drafts: [], activity_log: sampleActivityLog(tasks, ts), notifications: [], notification_settings: [],
       stage_history: stageHistory(contacts, onboarding, ts),
     },
     raw,
@@ -317,7 +317,8 @@ function addProcessHistory({ contacts, organizations, onboarding, retention, int
   add("c_mei", "Mei Tanaka", "Oak Ridge School District", "School or university", "Facilities Manager", "Ian", A, "21000",
     { renewal_date: d(345), last_renewed_at: ts(-20), renewal_value: "23500" });
   // Victor's calculated health is "needs attention" (an overdue invoice task); Jamie set it to healthy by hand.
-  add("c_victor", "Victor Reyes", "Riverbend Golf Club", "Golf course", "Course Manager", "Jamie", A, "14500", { renewal_date: d(75), health_override: "green" });
+  add("c_victor", "Victor Reyes", "Riverbend Golf Club", "Golf course", "Course Manager", "Jamie", A, "14500", { renewal_date: d(75), health_override: "green",
+    health_reason: "The overdue task is just an invoice; Jamie talked to Victor last week and he's happy" });
   add("c_paul", "Paul Novak", "Greenfield Distribution", "Warehouse", "Operations Director", "Ian", X, "8800", { won: "1", lost_reason: "Budget cut; went back to the landscaper" });
   add("c_diane", "Diane Foster", "Hillcrest Church", "Church", "Facilities Volunteer", "Sam", X, "3000", { won: "1", lost_reason: "Herd delivery was late twice" });
   // Existing clients: Luis renews in 50 days; Grace is still onboarding.
@@ -378,11 +379,55 @@ function addProcessHistory({ contacts, organizations, onboarding, retention, int
   touch("int_s13", "c_diane", -72, "call", "Diane raised the late deliveries again", "Sam");
 
   const task = (id: string, title: string, due: number, assigned_to: string, contact_id: string) =>
-    tasks.push({ id, title, due_date: d(due), assigned_to, contact_id, done: "", done_at: "", created_by: "Ian", created_at: ts(-8), updated_at: ts(-8), notes: "", priority: "" });
+    tasks.push({ id, title, due_date: d(due), assigned_to, contact_id, done: "", done_at: "", completed_at: "", created_by: "Ian", created_at: ts(-8), updated_at: ts(-8), notes: "", priority: "" });
   task("task_s1", "Send the fall grazing invoice", -4, "Jamie", "c_victor");
   task("task_s2", "Book the site visit", 1, "Sam", "c_ray");
   task("task_s3", "Schedule the kickoff call", 2, "Jamie", "c_sofia");
   task("task_s4", "Send Marcus the quote", 2, "Ian", "c_marcus");
+  task("task_s5", "Update the herd delivery checklist", 4, "", "");
+  task("task_s6", "Call Owen about the season recap", -2, "Sam", "c_owen");
+  Object.assign(tasks.find((t) => t.id === "task_s6")!, { priority: "Urgent" });
+
+  // Finished tasks over the last 90 days for three teammates, some late, so the Team page's Efficiency tab
+  // and the Insights charts have real variation. [created day, due after N days, finished after N days]
+  const FINISHED: Record<string, [number, number, number][]> = {
+    Ian: [[-86, 4, 3], [-74, 3, 5], [-63, 5, 4], [-55, 2, 2], [-41, 4, 6], [-33, 3, 2], [-26, 5, 5], [-19, 2, 4], [-12, 3, 1], [-8, 2, 2], [-5, 3, 2]],
+    Jamie: [[-88, 3, 2], [-70, 4, 3], [-52, 3, 3], [-40, 5, 2], [-29, 2, 1], [-21, 4, 3], [-14, 3, 2], [-9, 2, 1], [-4, 3, 2], [-2, 1, 1]],
+    Sam: [[-80, 3, 7], [-61, 2, 4], [-45, 4, 3], [-30, 2, 5], [-22, 3, 6], [-15, 2, 2], [-6, 3, 5]],
+  };
+  const TITLES = ["Send the site photos", "Confirm grazing dates", "Follow up on the quote", "Book the site walk", "Send the invoice",
+    "Check the fence line", "Share the before-and-after photos", "Schedule the check-in call", "Update the herd plan", "Answer the board's questions", "Send the renewal reminder"];
+  const CLIENTS = ["c_luis", "c_hannah", "c_mei", "c_victor", "c_grace", "c_amara", "c_jo", "c_owen", "c_tom", "c_ken", "c_paul"];
+  let n = 0;
+  for (const [who, rows] of Object.entries(FINISHED)) {
+    rows.forEach(([created, dueIn, doneIn], i) => {
+      const finished = `${d(created + doneIn)} ${String(10 + (i % 7)).padStart(2, "0")}:15`;
+      tasks.push({ id: `task_f${++n}`, title: TITLES[(n * 3 + i) % TITLES.length], due_date: d(created + dueIn), assigned_to: who,
+        contact_id: CLIENTS[(n + i) % CLIENTS.length], done: "TRUE", done_at: finished, completed_at: finished,
+        created_by: n % 3 ? "Ian" : "Jamie", created_at: ts(created), updated_at: finished, notes: "", priority: "" });
+    });
+  }
+  // Two more research participants (research board urgency: one overdue, one due today).
+  for (const [id, name, org, type, status, follow, day] of [
+    ["c_lena", "Lena Park", "Maple Street Elementary", "School or university", "Contacted", -3, -15],
+    ["c_omar", "Omar Haddad", "Riverside Business Center", "Office park", "Interview Scheduled", 0, -20],
+  ] as [string, string, string, string, string, number, number][]) {
+    organizations.push({ id: `org_${id.slice(2)}`, name: org, type, address: "", notes: "", ...base(day) });
+    contacts.push(contact({ id, name, company: org, organization_id: `org_${id.slice(2)}`, role: "Facilities Coordinator", owner: id === "c_lena" ? "Sam" : "Jamie",
+      contact_type: "research_participant", research_status: status, email: `${name.split(" ")[0].toLowerCase()}@example.com`, source: "Sample data",
+      fit_score: "", next_followup_date: d(follow), notes: "", quote_amount: "", deal_value: "", expected_close_date: "", deal_status: "", ...base(day) }));
+  }
+}
+
+/** Activity log entries for the sample tasks (who assigned what), plus a couple of reassignments, for the Team → Activity tab. */
+function sampleActivityLog(tasks: Row[], ts: (n: number) => string): Row[] {
+  const log: Row[] = tasks.map((t, i) => ({
+    id: `log_s${i}`, at: t.created_at, user: t.created_by || "Ian", action: "create", table: "tasks", record_id: t.id,
+    details: `${t.created_by || "Ian"} added task “${t.title}” for ${t.assigned_to || "Unassigned"}`,
+  }));
+  log.push({ id: "log_r1", at: ts(-3), user: "Ian", action: "reassign", table: "tasks", record_id: "task_s2", details: "Ian reassigned task “Book the site visit” to Sam (was Ian)" });
+  log.push({ id: "log_r2", at: ts(-1), user: "Jamie", action: "reassign", table: "contacts", record_id: "c_sofia", details: "Jamie reassigned Sofia Brandt to Jamie (was Sam)" });
+  return log;
 }
 
 /** stage_history rows: every pipeline move from PATHS, and every onboarding stage entry from the onboarding rows. */

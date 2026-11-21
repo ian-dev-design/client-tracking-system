@@ -14,15 +14,16 @@ export const TABLES = {
     "organization_id", // links to organizations; `company` keeps the organization's name for display
     "quote_amount", "deal_value", "expected_close_date", "deal_status", // deal_status: open | won | lost
     "created_at", "updated_at", "updated_by",
-    // Retention: renewal_value blank = the deal value. health_override: green | yellow | red, blank = calculated.
-    "renewal_date", "renewal_value", "last_renewed_at", "health_override",
+    // Retention: renewal_value blank = the deal value. health_override: green | yellow | red, blank = calculated;
+    // health_reason = why it was set by hand; health_status = last saved health (calculated or override).
+    "renewal_date", "renewal_value", "last_renewed_at", "health_override", "health_reason", "health_status",
   ],
   organizations: ["id", "name", "type", "address", "notes", "created_at", "updated_at", "updated_by"],
   sites: [
     "id", "organization_id", "name", "address", "size", "notes", // size/notes labels come from config.json → sites
     "service_start", "service_end", "status", "created_at", "updated_at", "updated_by",
   ],
-  tasks: ["id", "title", "due_date", "assigned_to", "contact_id", "done", "done_at", "created_by", "created_at", "updated_at", "notes", "priority"],
+  tasks: ["id", "title", "due_date", "assigned_to", "contact_id", "done", "done_at", "created_by", "created_at", "updated_at", "notes", "priority", "completed_at"],
   // Full interview transcripts, word for word. Long ones are split into parts (a Sheet cell holds ~50k characters).
   transcripts: ["id", "interview_id", "part", "text", "created_at"],
   interactions: [

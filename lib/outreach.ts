@@ -3,7 +3,7 @@
 // (personalized by Claude only when ANTHROPIC_API_KEY is set).
 
 import { aiEnabled, aiPersonalizeDraft } from "@/lib/ai";
-import { getContact, isProspect, isResearch, saveDraft, startOnboarding } from "@/lib/crm";
+import { getContact, isProspect, isResearch, saveDraft, startOnboarding, updateOnboarding } from "@/lib/crm";
 import { prefilledSurveyLink } from "@/lib/config";
 import { store, type Row } from "@/lib/data";
 import { fillTemplate, firstName } from "@/lib/util";
@@ -74,8 +74,10 @@ export async function buildDraft(contactId: string, senderName: string, purpose?
  * Sets the stage, creates the checklist, logs it, and saves a welcome email as a draft to review.
  * Never sends anything.
  */
-export async function moveToOnboarding(contactId: string, actor: string) {
+export async function moveToOnboarding(contactId: string, actor: string, handoffNotes = "") {
   const row = await startOnboarding(contactId, actor);
+  // What sales / outreach learned, written at the moment of the move.
+  if (handoffNotes.trim() && !row.handoff_notes) await updateOnboarding(row.id, { handoff_notes: handoffNotes.trim() }, actor);
   const drafts = await store().list("drafts");
   const hasWelcome = drafts.some((d) => d.contact_id === contactId && d.status === "pending" && d.template === "welcome");
   if (!hasWelcome) {

@@ -41,53 +41,57 @@ function historyByContact(history: Row[], track: string) {
 
 // ---------- Outreach funnel ----------
 
-export const FUNNEL_STEPS = ["Lead", "Outreach", "Survey Completed", "Client Interview", "Qualified", "Won"] as const;
-const SHORT: Record<string, string> = { "Survey Completed": "Survey", "Client Interview": "Interview" };
+export const FUNNEL_STEPS = ["Contacted", "Responded", "Interview / meeting", "Onboarding", "Retained"] as const;
+const SHORT: Record<string, string> = { "Interview / meeting": "Interview" };
 const short = (s: string) => SHORT[s] || s;
-/** Funnel position of a pipeline stage; onboarding and retention mean the deal was won. */
+/** Funnel position of a pipeline stage: Outreach = contacted, Survey Completed = responded, and so on. Lead isn't contacted yet. */
 function funnelIndex(stage: string): number {
-  const i = (FUNNEL_STEPS as readonly string[]).indexOf(stage);
-  if (i >= 0) return i;
-  return stage === "Onboarding" || stage === "Active / Retention" ? 5 : -1;
+  return ({ Outreach: 0, "Survey Completed": 1, "Client Interview": 2, Qualified: 2, Onboarding: 3, "Active / Retention": 4 } as Record<string, number>)[stage] ?? -1;
 }
 
-export type FunnelStep = { label: string; count: number; pctPrev: number; pctStart: number; drop: boolean };
+export type FunnelStep = { label: string; count: number; pctPrev: number; pctStart: number; drop: boolean; stillHere: number };
 
 /**
- * Lead → … → Won. A contact counts at every step up to the furthest stage they ever entered
- * (from stage history, their current stage, or a won deal), so the funnel doesn't shrink as people move on.
- * The range picks contacts added in that period.
+ * Contacted → Responded → Interview / meeting → Onboarding → Retained.
+ * A contact counts at every step up to the furthest one they ever reached: from stage history, their current stage,
+ * a survey (responded) or an interview / meeting logged (met), or a won deal (onboarding). So the funnel doesn't
+ * shrink as people move on. The range picks people first contacted in that period.
  */
 export function funnel(data: AllData, range: RangeKey, now = new Date()) {
   const start = rangeStart(range, now);
   const hist = historyByContact(data.stageHistory, "pipeline");
-  const people = data.contacts.filter((c) => isProspect(c) || c.stage).filter((c) => {
-    const first = [c.created_at, ...(hist.get(c.id) || []).map((h) => h.at)].filter(Boolean).sort()[0];
-    return !start || (first && at(first)! >= start);
-  });
-  const furthest = people.map((c) => Math.max(
-    funnelIndex(c.stage),
-    ...(hist.get(c.id) || []).map((h) => funnelIndex(h.to_stage)),
-    c.deal_status === "won" ? 5 : -1,
-  ));
-  const counts = FUNNEL_STEPS.map((_, i) => furthest.filter((f) => f >= i).length);
-  // Biggest drop: the step that loses the largest share of the people who reached the step before it.
+  const logged = new Map<string, number>();
+  for (const i of data.interactions) {
+    const n = i.type === "survey" ? 1 : i.type === "interview" || i.type === "meeting" ? 2 : -1;
+    if (n > (logged.get(i.contact_id) ?? -1)) logged.set(i.contact_id, n);
+  }
+  const people = data.contacts.filter((c) => isProspect(c) || c.stage).map((c) => {
+    const h = hist.get(c.id) || [];
+    const furthest = Math.max(funnelIndex(c.stage), ...h.map((x) => funnelIndex(x.to_stage)), c.deal_status === "won" ? 3 : -1, logged.get(c.id) ?? -1);
+    const firstContact = h.find((x) => funnelIndex(x.to_stage) >= 0)?.at || c.created_at;
+    // Still working through their furthest step (not dropped out): they haven't had the chance to convert yet.
+    const open = c.stage !== "Churned / Lost" && funnelIndex(c.stage) === furthest;
+    return { furthest, firstContact, open };
+  }).filter((p) => p.furthest >= 0 && (!start || (p.firstContact && at(p.firstContact)! >= start)));
+  const counts = FUNNEL_STEPS.map((_, i) => people.filter((p) => p.furthest >= i).length);
+  const stillAt = FUNNEL_STEPS.map((_, i) => people.filter((p) => p.furthest === i && p.open).length);
+  // Step-to-step conversion counts only people who finished the step before (moved on or dropped out),
+  // so clients still mid-onboarding don't look like a drop. Biggest drop = the lowest of those conversions.
+  const decided = (i: number) => counts[i - 1] - stillAt[i - 1];
   let dropAt = -1, dropShare = 0;
   counts.forEach((n, i) => {
-    if (!i || !counts[i - 1]) return;
-    const share = (counts[i - 1] - n) / counts[i - 1];
+    if (!i || decided(i) <= 0) return;
+    const share = (decided(i) - n) / decided(i);
     if (share > dropShare) { dropShare = share; dropAt = i; }
   });
   const steps: FunnelStep[] = FUNNEL_STEPS.map((label, i) => ({
-    label, count: counts[i], pctPrev: i ? pct(counts[i], counts[i - 1]) : 100, pctStart: pct(counts[i], counts[0]), drop: i === dropAt,
+    label, count: counts[i], pctPrev: i ? pct(counts[i], decided(i)) : 100, pctStart: pct(counts[i], counts[0]), drop: i === dropAt, stillHere: stillAt[i],
   }));
   const enough = counts[0] >= 3;
-  const surveyed = steps[2];
-  const takeaway = !enough ? "" : [
-    `${surveyed.pctStart}% of leads reach a survey and ${steps[5].pctStart}% are won`,
-    dropAt > 0 ? `the biggest drop is ${short(FUNNEL_STEPS[dropAt - 1])} → ${short(FUNNEL_STEPS[dropAt])} (${Math.round(dropShare * 100)}% don't continue)` : "no step loses anyone",
-  ].join("; ") + ".";
-  return { steps, enough, total: counts[0], takeaway, dropLabel: dropAt > 0 ? `${short(FUNNEL_STEPS[dropAt - 1])} → ${short(FUNNEL_STEPS[dropAt])}` : "" };
+  const dropLabel = dropAt > 0 ? `${short(FUNNEL_STEPS[dropAt - 1])} → ${short(FUNNEL_STEPS[dropAt])}` : "";
+  const takeaway = !enough ? "" : `${steps[1].pctStart}% of the people contacted respond and ${steps[4].pctStart}% have become retained clients so far; `
+    + (dropAt > 0 ? `the biggest drop is ${dropLabel} (${Math.round(dropShare * 100)}% don't continue).` : "no step loses anyone.");
+  return { steps, enough, total: counts[0], takeaway, dropLabel };
 }
 
 // ---------- Retention ----------
@@ -129,7 +133,7 @@ export function retention(data: AllData, range: RangeKey, now = new Date()) {
   churned.forEach((x) => byReason.set(x.reason, (byReason.get(x.reason) || 0) + 1));
   const SHADES = [100, 72, 52, 36, 24];
   const reasons: Slice[] = [...byReason.entries()].sort((a, b) => b[1] - a[1])
-    .map(([label, value], i) => ({ label, value, color: tint("#b5593c", SHADES[i % SHADES.length]) }));
+    .map(([label, value], i) => ({ label, value, color: tint("#2a8c8c", SHADES[i % SHADES.length]) }));
 
   // Month by month: of the clients active on the 1st, how many were still active at the month's end.
   const earliest = spans.length ? Math.min(...spans.map((s) => s.from.getTime())) : now.getTime();
@@ -140,9 +144,10 @@ export function retention(data: AllData, range: RangeKey, now = new Date()) {
     const end = new Date(Math.min(new Date(first.getFullYear(), first.getMonth() + 1, 1).getTime(), now.getTime()));
     const base = spans.filter((s) => activeOn(s, first));
     const label = MONTHS[first.getMonth()] + (n > 12 ? ` ’${String(first.getFullYear()).slice(2)}` : "");
-    return { label, rate: base.length ? pct(base.filter((s) => !s.churn || s.churn > end).length, base.length) : null };
+    const churnedThisMonth = spans.filter((s) => s.churn && s.churn >= first && s.churn < end).length;
+    return { label, rate: base.length ? pct(base.filter((s) => !s.churn || s.churn > end).length, base.length) : null, churned: churnedThisMonth };
   });
-  const points = monthly.filter((m) => m.rate !== null) as { label: string; rate: number }[];
+  const points = monthly.filter((m) => m.rate !== null) as { label: string; rate: number; churned: number }[];
   const low = points.length ? points.reduce((a, b) => (b.rate < a.rate ? b : a)) : null;
 
   const startLabel = start ? start.toLocaleDateString("en-US", start.getFullYear() === now.getFullYear()
@@ -155,7 +160,10 @@ export function retention(data: AllData, range: RangeKey, now = new Date()) {
   const lineTakeaway = points.length < 2 || !low ? "" : points.every((p) => p.rate === points[0].rate)
     ? `Steady at ${points[0].rate}% every month.`
     : `Lowest month: ${low.label} at ${low.rate}%. Latest: ${points[points.length - 1].label} at ${points[points.length - 1].rate}%.`;
-  return { rate, cohort: cohort.length, still: still.length, churned, reasons, monthly, points, takeaway, lineTakeaway };
+  const worst = monthly.reduce((a, b) => (b.churned > a.churned ? b : a), monthly[0]);
+  const churnTakeaway = !churned.length ? "No churn in this period."
+    : `${plural(churned.length, "client")} churned in ${plural(monthly.filter((m) => m.churned).length, "month")}${worst?.churned ? `; the most was ${worst.churned} in ${worst.label}` : ""}.`;
+  return { rate, cohort: cohort.length, still: still.length, churned, reasons, monthly, points, takeaway, lineTakeaway, churnTakeaway };
 }
 
 /** Health split of current clients, for the small donut on the Retention page. */

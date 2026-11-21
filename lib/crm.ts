@@ -5,6 +5,7 @@ import { config } from "@/lib/config";
 import { store, ONBOARDING_STEPS, RETENTION_SIGNALS, type Row, type TableName } from "@/lib/data";
 import type { Step } from "@/lib/target";
 import { ONBOARDING_STAGES, currentStage, enteredCol, stageByKey, stageIndex } from "@/lib/onboarding";
+import { clientHealth } from "@/lib/retention";
 import { addDays, isTrue, newId, nowStamp, today } from "@/lib/util";
 import { isPerson, team } from "@/lib/team";
 import { notify, taskEmailLines } from "@/lib/notify";
@@ -23,14 +24,14 @@ export async function logActivity(user: string, action: string, table: TableName
 export async function loadAll() {
   const s = store();
   const [contacts, interactions, surveys, interviews, themes, onboarding, retention, drafts, templates, guides,
-    organizations, sites, tasks, transcripts, stageHistory] = await Promise.all([
+    organizations, sites, tasks, transcripts, stageHistory, activityLog] = await Promise.all([
     s.list("contacts"), s.list("interactions"), s.list("surveys"), s.list("interviews"),
     s.list("research_themes"), s.list("onboarding"), s.list("retention"), s.list("drafts"),
     s.list("email_templates"), s.list("interview_guides"), s.list("organizations"), s.list("sites"), s.list("tasks"),
-    s.list("transcripts"), s.list("stage_history"),
+    s.list("transcripts"), s.list("stage_history"), s.list("activity_log"),
   ]);
   return { contacts, interactions, surveys, interviews, themes, onboarding, retention, drafts, templates, guides,
-    organizations, sites, tasks, transcripts, stageHistory };
+    organizations, sites, tasks, transcripts, stageHistory, activityLog };
 }
 export type AllData = Awaited<ReturnType<typeof loadAll>>;
 
@@ -295,6 +296,20 @@ export async function completeOnboarding(contactId: string, actor: string) {
   return moveStage(contactId, "stage", "Active / Retention", actor);
 }
 
+/**
+ * Save each retention client's current health (calculated, or the manual override) to health_status,
+ * so the Sheet shows it too. Run by the daily job and after an override changes. Only writes what changed.
+ */
+export async function refreshHealthStatuses(onlyId?: string) {
+  const [contacts, interactions, tasks] = await Promise.all([store().list("contacts"), store().list("interactions"), store().list("tasks")]);
+  let changed = 0;
+  for (const c of contacts.filter((x) => x.stage === "Active / Retention" && (!onlyId || x.id === onlyId))) {
+    const h = clientHealth(c, interactions, tasks).health;
+    if (c.health_status !== h) { await store().update("contacts", c.id, { health_status: h }); changed++; }
+  }
+  return changed;
+}
+
 /** The client renewed: record when, and their next renewal date. */
 export async function renewClient(contactId: string, nextDate: string, actor: string) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(nextDate || "")) throw new Error("Pick the next renewal date.");
@@ -434,7 +449,8 @@ export async function updateTask(id: string, patch: Row, actor: string) {
   const current = (await store().list("tasks")).find((t) => t.id === id);
   if (!current) throw new Error("Task not found");
   const next: Row = { ...patch, updated_at: nowStamp() };
-  if (patch.done !== undefined) next.done_at = isTrue(patch.done) ? nowStamp() : "";
+  // completed_at: when it was finished (for the Team page's Efficiency tab); done_at kept for older code and data.
+  if (patch.done !== undefined) next.done_at = next.completed_at = isTrue(patch.done) ? nowStamp() : "";
   const saved = await store().update("tasks", id, next);
   const reassigned = patch.assigned_to !== undefined && patch.assigned_to !== current.assigned_to;
   if (reassigned) {
@@ -492,6 +508,48 @@ export async function handOff(input: { from: string; to: string; taskIds?: strin
     });
   }
   return { tasks: moveTasks.length, clients: moveClients.length };
+}
+
+/**
+ * Reassign several tasks (or clients) to one person at once, from the Team page.
+ * Each item is logged like a single reassignment (activity log + the client's timeline), but the new assignee gets
+ * ONE notification listing everything, sent through notify() so the usual rules apply (allowlist, settings, caps).
+ * `to` = "" means Unassigned (tasks only; every client keeps an owner).
+ */
+export async function bulkReassign(input: { kind: "tasks" | "clients"; ids: string[]; to: string }, actor: string) {
+  const { kind, ids, to } = input;
+  if (!ids.length) throw new Error("Nothing selected.");
+  const label = to || "Unassigned";
+  const lines: string[] = [];
+  let moved = 0;
+  if (kind === "tasks") {
+    const [tasks, contacts] = await Promise.all([store().list("tasks"), store().list("contacts")]);
+    const names = new Map(contacts.map((c) => [c.id, c.name]));
+    for (const t of tasks.filter((x) => ids.includes(x.id) && !isTrue(x.done) && x.assigned_to !== to)) {
+      await store().update("tasks", t.id, { assigned_to: to, updated_at: nowStamp() });
+      await logActivity(actor, "reassign", "tasks", t.id, `${actor} reassigned task “${t.title}” to ${label} (was ${t.assigned_to || "Unassigned"})`);
+      lines.push(`• ${t.title}${names.get(t.contact_id) ? ` (${names.get(t.contact_id)})` : ""}${t.due_date ? `, due ${formatDateShort(t.due_date)}` : ""}`);
+      moved++;
+    }
+  } else {
+    if (!to) throw new Error("Clients need an owner. Pick a person.");
+    for (const c of (await store().list("contacts")).filter((x) => ids.includes(x.id) && x.owner !== to)) {
+      await store().update("contacts", c.id, { owner: to, updated_at: nowStamp(), updated_by: actor });
+      await logActivity(actor, "reassign", "contacts", c.id, `${actor} reassigned ${c.name} to ${to} (was ${c.owner || "no owner"})`);
+      lines.push(`• ${c.name}${c.company ? ` (${c.company})` : ""}`);
+      moved++;
+    }
+  }
+  if (to && moved) {
+    const what = `${moved} ${kind === "tasks" ? "task" : "client"}${moved === 1 ? "" : "s"}`;
+    await notify({
+      to, type: kind === "tasks" ? "assign_task" : "assign_client", by: actor, link: kind === "tasks" ? "/tasks" : "/team?view=clients",
+      eventKey: `bulk:${kind}:${to}:${nowStamp()}:${ids.join(",")}`,
+      title: `${actor} assigned you ${what}`,
+      email: { subject: `${actor} assigned you ${what}`, lines: [`${actor} assigned you ${what}:`, ...lines] },
+    });
+  }
+  return { moved };
 }
 
 /** Reassignment and hand-off entries for one client: their own, plus those on their tasks. Newest first. */

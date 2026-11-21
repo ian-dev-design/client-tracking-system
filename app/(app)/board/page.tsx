@@ -13,17 +13,17 @@ import { journey } from "@/lib/journey";
 export default async function OutreachBoard({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const f = params(await searchParams);
   const data = await loadAll();
-  const { contacts, interactions, interviews, drafts } = data;
+  const { contacts, interactions, interviews, drafts, tasks } = data;
   const fun = funnel(data, "all");
   const prospects = contacts.filter(isProspect).filter((c) => (BOARD_STAGES as readonly string[]).includes(c.stage));
-  const cards = filterContacts(prospects, f).map((c) => boardCard(c, interactions, interviews, drafts, "stage"));
+  const cards = filterContacts(prospects, f).map((c) => boardCard(c, interactions, interviews, drafts, "stage", tasks));
   return (
     <>
       <PageHeader title="Outreach" stage="outreach">
         <Link href="/contacts/new" className="btn btn-primary">+ Add contact</Link>
       </PageHeader>
       <InsightStrip href="/insights#outreach" summary={fun.enough
-        ? <>Of <b>{fun.total}</b> leads, <b>{fun.steps[2].pctStart}%</b> reached a survey and <b>{fun.steps[5].pctStart}%</b> were won{fun.dropLabel && <> · biggest drop: <span className="font-medium text-coral">{fun.dropLabel}</span></>}</>
+        ? <>Of <b>{fun.total}</b> contacted, <b>{fun.steps[1].pctStart}%</b> responded and <b>{fun.steps[3].pctStart}%</b> reached onboarding{fun.dropLabel && <> · biggest drop: <b>{fun.dropLabel}</b></>}</>
         : <span className="text-muted">Conversion: not enough contacts yet.</span>}>
         {fun.enough ? <FunnelBars mini steps={fun.steps} color={journey("outreach").hex} /> : <p className="muted">The mini funnel shows once you have a few contacts.</p>}
       </InsightStrip>

@@ -11,10 +11,8 @@ import type { OnboardingView } from "@/lib/onboarding";
 import { moneyShort } from "@/lib/target";
 import { postJson } from "./Modal";
 import { Column } from "./StageBoard";
-import { Avatar, HEALTH_COLOR } from "./ui";
+import { Avatar, UrgencyFlag } from "./ui";
 import { toast } from "./Toast";
-
-const HEALTH_LABEL: Record<string, string> = { green: "Healthy", yellow: "Needs attention", red: "At risk" };
 
 function Card({ v }: { v: OnboardingView }) {
   const router = useRouter();
@@ -30,19 +28,15 @@ function Card({ v }: { v: OnboardingView }) {
           <div className="truncate text-[15px] font-semibold text-ink">{v.name}</div>
           <div className="truncate text-sm text-muted">{v.company || "—"}</div>
         </div>
-        <span className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${HEALTH_COLOR[v.health] || HEALTH_COLOR.green}`}
-          role="img" aria-label={`Health: ${HEALTH_LABEL[v.health] || "Healthy"}`} title={`Health: ${HEALTH_LABEL[v.health] || "Healthy"}`} />
       </div>
       <div className="mt-2 text-xs text-muted">
-        <span className="font-medium text-ink">{v.stageLabel}</span> · {v.done} of {v.total} tasks
-        {v.days !== null && <> · <span className="tabular-nums">{v.days}d</span> here</>}
+        <span className="tabular-nums font-medium text-ink">{v.days ?? "—"}d in {v.stageLabel}</span> · {v.done} of {v.total} steps
       </div>
-      <div className="mt-2.5 flex items-center gap-1">
-        <div className="flex min-w-0 flex-1 gap-1 overflow-hidden">
-          {v.blockers && <span className="min-w-0 truncate rounded-xs bg-coral/10 px-1.5 py-0.5 text-[11px] font-medium text-coral" title={v.blockers}>Blocked</span>}
-          {v.value > 0 && <span className="rounded-xs bg-onboarding/15 px-1.5 py-0.5 text-[11px] font-medium text-onboarding-ink">{moneyShort(v.value)}</span>}
-        </div>
+      <UrgencyFlag u={v.urgency} className="mt-2" />
+      <div className="mt-2.5 flex items-center gap-1.5">
         <span title={v.owner ? `Owner: ${v.owner}` : "No owner"}><Avatar name={v.owner || "?"} size="sm" /></span>
+        <span className="min-w-0 flex-1 truncate text-xs text-muted">{v.owner || "No owner"}</span>
+        {v.value > 0 && <span className="rounded-xs bg-onboarding/12 px-1.5 py-0.5 text-[11px] font-medium text-onboarding-ink">{moneyShort(v.value)}</span>}
       </div>
     </div>
   );

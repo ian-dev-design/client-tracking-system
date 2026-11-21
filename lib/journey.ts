@@ -39,14 +39,14 @@ export const JOURNEY: JourneyStage[] = [
     key: "onboarding", n: 3, label: "Onboarding", href: "/onboarding",
     purpose: "Set new clients up",
     description: "Take each new client from handoff to a success review, one stage at a time.",
-    hex: "#d69a2d", bg: "bg-onboarding", border: "border-l-onboarding", tint: "bg-onboarding/12",
+    hex: "#7b5ea7", bg: "bg-onboarding", border: "border-l-onboarding", tint: "bg-onboarding/12",
     ink: "text-onboarding-ink", tag: "bg-onboarding/15 text-onboarding-ink", underline: "border-onboarding",
   },
   {
     key: "retention", n: 4, label: "Retention", href: "/retention",
     purpose: "Keep customers happy",
     description: "Keep clients healthy, catch anyone going quiet, and stay ahead of renewals.",
-    hex: "#b5593c", bg: "bg-retention", border: "border-l-retention", tint: "bg-retention/10",
+    hex: "#2a8c8c", bg: "bg-retention", border: "border-l-retention", tint: "bg-retention/10",
     ink: "text-retention-ink", tag: "bg-retention/12 text-retention-ink", underline: "border-retention",
   },
 ];

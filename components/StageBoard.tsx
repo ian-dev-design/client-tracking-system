@@ -12,7 +12,7 @@ export type Shade = { bg: string; fg: string; edge: string };
 const CHEVRON = (first: boolean) =>
   `polygon(0 0, calc(100% - 10px) 0, 100% 50%, calc(100% - 10px) 100%, 0 100%${first ? "" : ", 10px 50%"})`;
 
-export function Column({ id, label, index, count, value, shade, hint, subtitle, dot, children }: {
+export function Column({ id, label, index, count, value, shade, hint, subtitle, dot, narrow = false, children }: {
   id: string; // drop target id
   label: string;
   index: number;
@@ -22,11 +22,12 @@ export function Column({ id, label, index, count, value, shade, hint, subtitle, 
   hint?: React.ReactNode; // what an empty column says
   subtitle?: string; // one quiet line under the header (e.g. the stage's description)
   dot?: string; // optional status dot class in the header (e.g. bg-success)
+  narrow?: boolean; // boards with 6 columns use slightly narrower ones so they fit
   children: React.ReactNode;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id });
   return (
-    <div ref={setNodeRef} className={`flex shrink-0 flex-col ${count ? "w-64 min-w-52 flex-1" : "w-44 min-w-36 flex-[0.6]"}`}>
+    <div ref={setNodeRef} className={`flex shrink-0 flex-col ${count ? `w-64 ${narrow ? "min-w-44" : "min-w-52"} flex-1` : "w-44 min-w-36 flex-[0.6]"}`}>
       <div className={`flex h-10 items-center justify-between gap-2 pr-5 ${index ? "pl-5" : "pl-3"}`}
         style={{ background: shade.bg, color: shade.fg, boxShadow: `inset 0 -2px 0 ${shade.edge}`, clipPath: CHEVRON(index === 0) }}>
         <span className="flex min-w-0 items-center gap-1.5">

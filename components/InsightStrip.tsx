@@ -12,7 +12,7 @@ export function InsightStrip({ summary, href, children }: { summary: React.React
         <span className="min-w-0 flex-1 text-ink">{summary}</span>
         <Link href={href} className="shrink-0 text-xs font-medium text-info hover:underline">Insights →</Link>
       </summary>
-      <div className="max-w-2xl pb-4 pl-6">{children}</div>
+      <div className="max-w-3xl pb-4 pl-6">{children}</div>
     </details>
   );
 }

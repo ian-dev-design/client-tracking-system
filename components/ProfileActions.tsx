@@ -7,7 +7,7 @@ import Link from "next/link";
 import { AddInterviewModal } from "./AddInterview";
 import { DraftOutreachModal } from "./DraftOutreach";
 import { LogInteractionModal } from "./LogInteraction";
-import { ActionButton, MENU_ITEM, MoveButton } from "./Widgets";
+import { ActionButton, HandoffModal, MENU_ITEM, MoveButton } from "./Widgets";
 import { toast } from "./Toast";
 
 export type PrimaryAction = "draft" | "interview" | "log" | "checklist" | "checkin";
@@ -55,12 +55,12 @@ export function MoreMenu({ label, children, width = "w-56" }: { label: string; c
 export function ProfileActions({ contact, primary, testRedirect, aiEnabled }: {
   contact: Record<string, string>; primary: PrimaryAction; testRedirect?: string; aiEnabled: boolean;
 }) {
-  const [open, setOpen] = useState<"" | "draft" | "log" | "interview">("");
+  const [open, setOpen] = useState<"" | "draft" | "log" | "interview" | "onboard">("");
   const c = contact;
   return (
     <div className="flex items-center gap-2">
       {primary === "checklist"
-        ? <Link href="/onboarding" className="btn btn-primary">{LABEL[primary]}</Link>
+        ? <Link href={`/onboarding/${c.id}`} className="btn btn-primary">{LABEL[primary]}</Link>
         : <button className="btn btn-primary" onClick={() => setOpen(primary === "log" ? "log" : "draft")}>{LABEL[primary]}</button>}
       <MoreMenu label={`More actions for ${c.name}`}>
         {primary !== "draft" && primary !== "interview" && primary !== "checkin" && <button className={MENU_ITEM} onClick={() => setOpen("draft")}>Draft outreach</button>}
@@ -74,13 +74,14 @@ export function ProfileActions({ contact, primary, testRedirect, aiEnabled }: {
           <ActionButton variant="menu" url={`/api/contacts/${c.id}`} body={{ action: "convert" }} label="Convert to prospect"
             doneText={`${c.name} is now a prospect`} confirmText={`Turn ${c.name} into a prospect? Their research history stays.`} />
         )}
-        {["Qualified", "Client Interview"].includes(c.stage) && <MoveButton variant="menu" contactId={c.id} name={c.name} to="onboarding" />}
+        {["Qualified", "Client Interview"].includes(c.stage) && <button className={MENU_ITEM} onClick={() => setOpen("onboard")}>→ Move to Onboarding</button>}
         {c.stage === "Onboarding" && <MoveButton variant="menu" contactId={c.id} name={c.name} to="active" />}
         {c.stage === "Active / Retention" && <MoveButton variant="menu" contactId={c.id} name={c.name} to="churn" />}
       </MoreMenu>
       {open === "draft" && <DraftOutreachModal contactIds={[c.id]} testRedirect={testRedirect} onClose={() => setOpen("")} />}
       {open === "log" && <LogInteractionModal contact={c} onClose={() => setOpen("")} />}
       {open === "interview" && <AddInterviewModal contact={c} aiEnabled={aiEnabled} onClose={() => setOpen("")} />}
+      {open === "onboard" && <HandoffModal contactId={c.id} name={c.name} onClose={() => setOpen("")} />}
     </div>
   );
 }

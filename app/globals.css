@@ -4,6 +4,7 @@
   Swiss/minimal, warm and readable. Every color in the app comes from this list — use these names
   (bg-paper, text-muted, border-line, bg-outreach/10…), not Tailwind's default palette.
   Color carries meaning only: the 4 journey stages, status (overdue / due / ready / info), and the
+  (amber and coral/red are urgency only: no stage uses them)
   one primary button. Body areas stay neutral. All text colors pass WCAG AA on paper and on 10–35% tints.
 */
 @theme {
@@ -23,8 +24,8 @@
   /* Journey stages: solid color for bars/dots/charts, -ink for text on their tints */
   --color-research: #5b8fa8;   --color-research-ink: #2f5f75;   /* dusty blue */
   --color-outreach: #2f6b4f;   --color-outreach-ink: #24573f;   /* green */
-  --color-onboarding: #d69a2d; --color-onboarding-ink: #845a12; /* amber */
-  --color-retention: #b5593c;  --color-retention-ink: #8e4128;  /* terracotta */
+  --color-onboarding: #7b5ea7; --color-onboarding-ink: #563d7f; /* violet */
+  --color-retention: #2a8c8c;  --color-retention-ink: #185858;  /* teal */
 
   /* Status */
   --color-coral: #b84a2c;   /* overdue / at risk (readable as text) */
@@ -49,10 +50,15 @@
   /* Glows use the element's text color (set text-urgent / text-warn alongside bg-current). */
   --animate-glow: glow 1.8s ease-in-out infinite;        /* overdue dots */
   --animate-glow-fast: glow 1s ease-in-out infinite;     /* a week+ overdue */
+  --animate-glow-soft: glow-soft 2.6s ease-in-out infinite; /* amber dots: same idea as red, slower and fainter */
   --animate-breathe: breathe 4s ease-in-out infinite;    /* the brand dot, barely there */
   @keyframes glow {
     0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, currentColor 0%, transparent); opacity: 1; }
     50% { box-shadow: 0 0 6px 2px color-mix(in srgb, currentColor 60%, transparent); opacity: 0.75; }
+  }
+  @keyframes glow-soft {
+    0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, currentColor 0%, transparent); opacity: 1; }
+    50% { box-shadow: 0 0 4px 1px color-mix(in srgb, currentColor 45%, transparent); opacity: 0.85; }
   }
   @keyframes breathe {
     0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, currentColor 0%, transparent); }

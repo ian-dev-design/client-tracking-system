@@ -4,6 +4,7 @@ import type { Row } from "@/lib/data";
 import { isClosed, isProspect, isResearch } from "@/lib/crm";
 import { daysSince, isTrue, today } from "@/lib/util";
 import { isPerson, team } from "@/lib/team";
+import { contactUrgency } from "@/lib/urgency";
 
 export function lastTouch(contactId: string, interactions: Row[]): string {
   return interactions.filter((i) => i.contact_id === contactId).map((i) => i.date).sort().pop() || "";
@@ -53,7 +54,7 @@ export function params(sp: Record<string, string | string[] | undefined>): Recor
 }
 
 /** The fields a board card shows, for one contact. */
-export function boardCard(c: Row, interactions: Row[], interviews: Row[], drafts: Row[], field: "stage" | "research_status") {
+export function boardCard(c: Row, interactions: Row[], interviews: Row[], drafts: Row[], field: "stage" | "research_status", tasks: Row[] = []) {
   const touch = lastTouch(c.id, interactions);
   return {
     id: c.id, name: c.name, company: c.company, owner: c.owner, stage: c.stage,
@@ -63,6 +64,7 @@ export function boardCard(c: Row, interactions: Row[], interviews: Row[], drafts
     // Only flag "ready for interview" while the card sits in this board's Survey Completed column.
     overdue: isOverdue(c), ready: c[field] === "Survey Completed" && readyForInterview(c, interviews),
     hasDraft: drafts.some((d) => d.contact_id === c.id && d.status === "pending"),
+    urgency: contactUrgency(c, tasks),
   };
 }
 

@@ -6,9 +6,9 @@ import { FilterBar } from "@/components/FilterBar";
 
 export default async function ResearchBoard({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const f = params(await searchParams);
-  const { contacts, interactions, interviews, drafts } = await loadAll();
+  const { contacts, interactions, interviews, drafts, tasks } = await loadAll();
   const people = contacts.filter((c) => isResearch(c) && c.research_status);
-  const cards = filterContacts(people, f).map((c) => boardCard(c, interactions, interviews, drafts, "research_status"));
+  const cards = filterContacts(people, f).map((c) => boardCard(c, interactions, interviews, drafts, "research_status", tasks));
   return (
     <>
       <FilterBar owners={owners(contacts)} show={owners(contacts).length > 1 ? ["type", "owner"] : ["type"]} />

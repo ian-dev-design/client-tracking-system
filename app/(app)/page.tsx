@@ -12,7 +12,7 @@ import { SectionHead } from "@/components/ui";
 const URGENCY = {
   critical: "text-urgent motion-safe:animate-glow-fast",
   alert: "text-urgent motion-safe:animate-glow",
-  due: "text-warn",
+  due: "text-warn motion-safe:animate-glow-soft",
   ready: "text-warn-soft",
 } as const;
 const URGENCY_LABEL = { critical: "Overdue a week or more", alert: "Overdue", due: "Due", ready: "Ready" } as const;

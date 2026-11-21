@@ -9,7 +9,7 @@ export function Donut({ data, caption, href, empty = "Nothing yet", format = Str
   href?: string; // makes the whole chart a link (slices can also have their own href)
   empty?: string;
   format?: (value: number) => string; // how values read in the legend, e.g. money
-  size?: "md" | "lg"; // lg = the dashboard's hero chart
+  size?: "sm" | "md" | "lg"; // lg = the dashboard's hero chart, sm = a small inline donut
   showLegend?: boolean; // false when the page shows its own list next to it
 }) {
   const total = data.reduce((s, d) => s + d.value, 0);
@@ -18,7 +18,7 @@ export function Donut({ data, caption, href, empty = "Nothing yet", format = Str
   const pct = (v: number) => (total ? Math.round((v / total) * 100) : 0);
 
   const ring = (
-    <svg viewBox="0 0 42 42" className={`${size === "lg" ? "h-56 w-56" : "h-32 w-32"} shrink-0`} role="img" aria-label={data.map((d) => `${d.label} ${pct(d.value)}%`).join(", ")}>
+    <svg viewBox="0 0 42 42" className={`${size === "lg" ? "h-56 w-56" : size === "sm" ? "h-16 w-16" : "h-32 w-32"} shrink-0`} role="img" aria-label={data.map((d) => `${d.label} ${pct(d.value)}%`).join(", ")}>
       <circle cx="21" cy="21" r={r} fill="none" stroke="var(--color-wash)" strokeWidth="5" />
       {data.filter((d) => d.value > 0).map((d) => {
         const p = (d.value / total) * 100;
@@ -88,7 +88,7 @@ export function StackedBar({ data, format = String }: { data: Slice[]; format?: 
 
 // ---------- Insights charts (plain HTML/SVG, server-rendered) ----------
 
-export type FunnelRow = { label: string; count: number; pctPrev: number; pctStart: number; drop: boolean };
+export type FunnelRow = { label: string; count: number; pctPrev: number; pctStart: number; drop: boolean; stillHere?: number };
 
 /**
  * Horizontal funnel: one bar per step, width = share of the first step.
@@ -104,15 +104,19 @@ export function FunnelBars({ steps, color, mini = false }: { steps: FunnelRow[];
         const fill = `color-mix(in srgb, ${color} ${Math.round(40 + (i / Math.max(1, n - 1)) * 60)}%, #ffffff)`;
         return (
           <li key={s.label} className={`grid items-center gap-3 ${mini ? "grid-cols-[6.5rem_1fr_2rem] text-xs" : "grid-cols-[8.5rem_1fr_8.5rem] text-sm"}`}>
-            <span className="truncate text-ink">{s.label}</span>
+            <span className="min-w-0 truncate text-ink">{s.label}
+              {!mini && !!s.stillHere && <span className="block text-[11px] text-faint">{s.stillHere} still here</span>}
+            </span>
             <span className={`relative block bg-wash ${mini ? "h-2" : "h-6"}`}>
               <span className="block h-full" style={{ width: `${(s.count / max) * 100}%`, background: fill }} />
-              {!mini && <span className="absolute inset-y-0 left-2 flex items-center text-xs font-semibold tabular-nums text-ink">{s.count}</span>}
+              {/* the count sits just past the end of the bar (inside it only when the bar is nearly full, where the fill is light) */}
+              {!mini && <span className="absolute inset-y-0 flex items-center text-xs font-semibold tabular-nums text-ink"
+                style={{ left: (s.count / max) * 100 > 88 ? 8 : `calc(${(s.count / max) * 100}% + 6px)` }}>{s.count}</span>}
             </span>
             {mini ? <span className="text-right tabular-nums text-muted">{s.count}</span> : (
               <span className="flex items-center justify-end gap-2 text-xs tabular-nums text-muted">
                 {i > 0 && <span className={s.drop ? "rounded-xs bg-coral/10 px-1.5 py-0.5 font-semibold text-coral" : ""}
-                  title={s.drop ? "Biggest drop" : undefined}>{s.pctPrev}% kept</span>}
+                  title={s.drop ? "Biggest drop" : "Of the people who finished the step before"}>{s.pctPrev}% kept</span>}
                 <span>{s.pctStart}%</span>
               </span>
             )}
@@ -172,5 +176,21 @@ export function LineChart({ points, color }: { points: { label: string; rate: nu
         </g>
       ))}
     </svg>
+  );
+}
+
+/** Small vertical bars per month (e.g. churned clients), with the count on top and the month underneath. */
+export function MonthBars({ months, color }: { months: { label: string; churned: number }[]; color: string }) {
+  const max = Math.max(1, ...months.map((m) => m.churned));
+  return (
+    <div className="flex h-24 items-end gap-1.5" role="img" aria-label={months.map((m) => `${m.label} ${m.churned}`).join(", ")}>
+      {months.map((m, i) => (
+        <div key={i} className="flex min-w-0 flex-1 flex-col items-center justify-end gap-1">
+          <span className="text-[10px] tabular-nums text-muted">{m.churned || ""}</span>
+          <span className="block w-full" style={{ height: `${(m.churned / max) * 52}px`, minHeight: m.churned ? 3 : 1, background: m.churned ? color : "var(--color-line)" }} />
+          <span className="truncate text-[10px] text-faint">{m.label.split(" ")[0]}</span>
+        </div>
+      ))}
+    </div>
   );
 }

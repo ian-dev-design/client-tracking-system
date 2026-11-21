@@ -5,23 +5,25 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { DndContext, PointerSensor, useDraggable, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import { journey, stageShades, type JourneyKey } from "@/lib/journey";
+import type { Urgency } from "@/lib/urgency";
 import { moneyShort } from "@/lib/target";
 import { DraftOutreachModal } from "./DraftOutreach";
 import { LogInteractionModal } from "./LogInteraction";
 import { postJson } from "./Modal";
 import { Column } from "./StageBoard";
-import { Avatar } from "./ui";
-import { MoveButton } from "./Widgets";
+import { Avatar, UrgencyFlag } from "./ui";
+import { HandoffModal } from "./Widgets";
 import { toast } from "./Toast";
 
 export type BoardCard = {
   id: string; name: string; company: string; owner: string; stage: string; research_status: string;
   contact_type: string; fit: number; value: number; lastTouch: string; overdue: boolean; ready: boolean; hasDraft: boolean;
+  urgency: Urgency;
 };
 
 type Tag = { label: string; cls: string };
 const TAG = {
-  alert: "bg-coral/10 text-coral", ready: "bg-success/10 text-outreach-ink", money: "bg-success/10 text-outreach-ink", plain: "bg-wash text-muted",
+  ready: "bg-success/10 text-outreach-ink", money: "bg-success/10 text-outreach-ink", plain: "bg-wash text-muted",
 };
 
 // What an empty column says, with a next step where there is one.
@@ -32,7 +34,7 @@ const EMPTY_HINT: Record<string, React.ReactNode> = {
 
 /** "⋯" menu: shows on hover with a mouse, always on touch screens. */
 function CardMenu({ card, canOnboard, testRedirect }: { card: BoardCard; canOnboard: boolean; testRedirect?: string }) {
-  const [open, setOpen] = useState<"" | "menu" | "draft" | "log">("");
+  const [open, setOpen] = useState<"" | "menu" | "draft" | "log" | "onboard">("");
   const contact = { id: card.id, name: card.name, stage: card.stage, research_status: card.research_status, contact_type: card.contact_type };
   const stop = { onPointerDown: (e: React.PointerEvent) => e.stopPropagation(), onClick: (e: React.MouseEvent) => e.stopPropagation() };
   return (
@@ -44,11 +46,12 @@ function CardMenu({ card, canOnboard, testRedirect }: { card: BoardCard; canOnbo
           <button className="block w-full px-3 py-1.5 text-left hover:bg-surface" onClick={() => setOpen("draft")}>Draft outreach</button>
           <button className="block w-full px-3 py-1.5 text-left hover:bg-surface" onClick={() => setOpen("log")}>Log interaction</button>
           <Link href={`/contacts/${card.id}`} className="block px-3 py-1.5 hover:bg-surface">Open profile</Link>
-          {canOnboard && <div className="border-t border-line px-3 pt-2 pb-1"><MoveButton contactId={card.id} name={card.name} to="onboarding" size="sm" /></div>}
+          {canOnboard && <div className="border-t border-line px-3 pt-2 pb-1"><button className="btn btn-sm btn-primary" onClick={() => setOpen("onboard")}>→ Move to Onboarding</button></div>}
         </div>
       )}
       {open === "draft" && <DraftOutreachModal contactIds={[card.id]} testRedirect={testRedirect} onClose={() => setOpen("")} />}
       {open === "log" && <LogInteractionModal contact={contact} onClose={() => setOpen("")} />}
+      {open === "onboard" && <HandoffModal contactId={card.id} name={card.name} onClose={() => setOpen("")} />}
     </div>
   );
 }
@@ -61,7 +64,6 @@ function Card({ card, accent, selected, onSelect, canOnboard, testRedirect }: {
   const style = transform ? { transform: `translate(${transform.x}px, ${transform.y}px)` } : undefined;
   // One row of up to 3 small tags: status first, then value, then fit.
   const tags: Tag[] = [];
-  if (card.overdue) tags.push({ label: "Overdue", cls: TAG.alert });
   if (card.ready) tags.push({ label: "Ready for interview", cls: TAG.ready });
   if (card.value) tags.push({ label: moneyShort(card.value), cls: TAG.money });
   if (card.fit) tags.push({ label: `Fit ${card.fit}/5`, cls: TAG.plain });
@@ -82,6 +84,7 @@ function Card({ card, accent, selected, onSelect, canOnboard, testRedirect }: {
           className={`mt-1 accent-forest ${selected ? "" : "opacity-0 group-hover:opacity-100 focus:opacity-100 [@media(hover:none)]:opacity-100"}`} />
         <CardMenu card={card} canOnboard={canOnboard} testRedirect={testRedirect} />
       </div>
+      <UrgencyFlag u={card.urgency} className="mt-2" />
       <div className="mt-2.5 flex items-center gap-1">
         <div className="flex min-w-0 flex-1 gap-1 overflow-hidden">
           {tags.slice(0, tags[0]?.label.length > 12 ? 2 : 3).map((t) => <span key={t.label} className={`min-w-0 truncate rounded-xs px-1.5 py-0.5 text-[11px] font-medium ${t.cls}`}>{t.label}</span>)}

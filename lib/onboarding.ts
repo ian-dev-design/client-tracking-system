@@ -16,13 +16,18 @@ export const stageByKey = (key: string) => ONBOARDING_STAGES.find((s) => s.key =
 export const stageIndex = (key: string) => ONBOARDING_STAGES.findIndex((s) => s.key === key);
 
 /**
- * The stage a client is in. Rows saved before stages existed have no onboarding_stage:
- * they sit in the first stage that still has an unchecked step (or the last stage if everything is checked).
+ * The stage a client is in. Rows saved before stages existed have no onboarding_stage, and older checklists
+ * don't have the newer steps, so go by the furthest work done: the last stage with a checked step
+ * (or the next stage, if every step there is checked). Nothing checked = the first stage.
  */
 export function currentStage(row: Row): OnboardingStage {
   const saved = stageByKey(row.onboarding_stage || "");
   if (saved) return saved;
-  return ONBOARDING_STAGES.find((s) => s.steps.some((st) => !isTrue(row[st.key]))) || ONBOARDING_STAGES[ONBOARDING_STAGES.length - 1];
+  let i = -1;
+  ONBOARDING_STAGES.forEach((s, n) => { if (s.steps.some((st) => isTrue(row[st.key]))) i = n; });
+  if (i < 0) return ONBOARDING_STAGES[0];
+  const allDone = ONBOARDING_STAGES[i].steps.every((st) => isTrue(row[st.key]));
+  return ONBOARDING_STAGES[allDone ? Math.min(i + 1, ONBOARDING_STAGES.length - 1) : i];
 }
 
 /** Checked steps in one stage, e.g. { done: 1, total: 2 }. */
@@ -86,6 +91,7 @@ export type OnboardingView = {
   health: string; blockers: string; handoffNotes: string; successGoals: string;
   stageKey: string; stageLabel: string; days: number | null; done: number; total: number;
   isLast: boolean; startDate: string; stages: StageView[];
+  urgency?: { level: "red" | "amber"; text: string } | null;
 };
 
 /** Everything about one client's onboarding, from their onboarding row (may be missing) and contact. */
