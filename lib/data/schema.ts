@@ -2,7 +2,7 @@
 // The Sheet's header row must match these names; setup-sheet creates them.
 // Onboarding and retention columns come from the steps / signals in config.json.
 
-import { ONBOARDING_STEPS, RETENTION_SIGNALS, type Step } from "@/lib/target";
+import { ONBOARDING_STAGES, ONBOARDING_STEPS, RETENTION_SIGNALS, type Step } from "@/lib/target";
 
 const checklistColumns = (steps: Step[]) => steps.flatMap((s) => [s.key, `${s.key}_date`]);
 
@@ -14,6 +14,8 @@ export const TABLES = {
     "organization_id", // links to organizations; `company` keeps the organization's name for display
     "quote_amount", "deal_value", "expected_close_date", "deal_status", // deal_status: open | won | lost
     "created_at", "updated_at", "updated_by",
+    // Retention: renewal_value blank = the deal value. health_override: green | yellow | red, blank = calculated.
+    "renewal_date", "renewal_value", "last_renewed_at", "health_override",
   ],
   organizations: ["id", "name", "type", "address", "notes", "created_at", "updated_at", "updated_by"],
   sites: [
@@ -45,6 +47,8 @@ export const TABLES = {
   onboarding: [
     "id", "contact_id", "start_date", ...checklistColumns(ONBOARDING_STEPS),
     "progress_pct", "health", "blockers", "created_at", "updated_at", "updated_by",
+    // onboarding_stage = a stage key from config.json; <stage>_entered_at = when they last entered it.
+    "onboarding_stage", "handoff_notes", "success_goals", ...ONBOARDING_STAGES.map((s) => `${s.key}_entered_at`), "completed_at",
   ],
   retention: [
     "id", "contact_id", "active_since", ...checklistColumns(RETENTION_SIGNALS),
@@ -55,6 +59,8 @@ export const TABLES = {
     "created_by", "created_at", "updated_at",
   ],
   activity_log: ["id", "at", "user", "action", "table", "record_id", "details"],
+  // Every stage move, for the Insights page. track: pipeline | research | onboarding.
+  stage_history: ["id", "contact_id", "track", "from_stage", "to_stage", "at", "by"],
   // In-app notifications for teammates (the bell). event_key stops the same event notifying twice.
   notifications: ["id", "to", "type", "title", "link", "by", "event_key", "read", "emailed_at", "created_at"],
   // One row per teammate; no row = everything on. digest_day: Mon..Sun.

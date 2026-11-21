@@ -1,5 +1,5 @@
 // Who we sell to, read from config.json. Change config.json to switch industries:
-// templates, survey questions, interview guides, onboarding steps and retention signals all follow.
+// templates, survey questions, interview guides, onboarding stages and retention signals all follow.
 // (No env vars or secrets here, so this file is safe to use in the browser too.)
 
 import raw from "@/config.json";
@@ -18,8 +18,12 @@ export const target = raw.targetCustomer as {
   welcomeNote?: string; // optional friendly line for the welcome email
 };
 
-/** Onboarding checklist steps, in order. Each `key` is a column in the onboarding tab (plus `<key>_date`). */
-export const ONBOARDING_STEPS: Step[] = raw.onboardingSteps;
+/** An onboarding stage: one column on the Onboarding board, with its own checklist. Rename them in config.json. */
+export type OnboardingStage = { key: string; label: string; description: string; steps: Step[] };
+export const ONBOARDING_STAGES: OnboardingStage[] = raw.onboardingStages;
+
+/** Every onboarding checklist step, in stage order. Each `key` is a column in the onboarding tab (plus `<key>_date`). */
+export const ONBOARDING_STEPS: Step[] = ONBOARDING_STAGES.flatMap((s) => s.steps);
 
 /** Signs a customer is sticking around. Each `key` is a column in the retention tab (plus `<key>_date`). */
 export const RETENTION_SIGNALS: Step[] = raw.retentionSignals;

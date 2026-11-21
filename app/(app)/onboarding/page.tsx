@@ -1,33 +1,34 @@
-import Link from "next/link";
 import { loadAll } from "@/lib/crm";
-import { byId, onboardingView, owners, params } from "@/lib/views";
+import { onboardingSpeed } from "@/lib/insights";
+import { ONBOARDING_STAGES, onboardingView } from "@/lib/onboarding";
+import { amount } from "@/lib/target";
+import { filterContacts, owners, params } from "@/lib/views";
+import { HBars } from "@/components/charts";
 import { FilterBar } from "@/components/FilterBar";
-import { OnboardingCard, type OnboardingView } from "@/components/OnboardingCard";
-import { Empty, PageHeader } from "@/components/ui";
-
-const HEALTH_RANK: Record<string, number> = { red: 0, yellow: 1, green: 2 };
+import { InsightStrip } from "@/components/InsightStrip";
+import { OnboardingBoard } from "@/components/OnboardingBoard";
+import { PageHeader } from "@/components/ui";
 
 export default async function OnboardingPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const f = params(await searchParams);
-  const { onboarding, contacts } = await loadAll();
-  const people = byId(contacts);
-  const q = (f.q || "").toLowerCase();
-  const items: OnboardingView[] = onboarding
-    .map((o) => onboardingView(o, people.get(o.contact_id)))
-    .filter((i) => i.stage === "Onboarding")
-    .filter((i) => (!f.owner || i.owner === f.owner) && (!q || `${i.name} ${i.company}`.toLowerCase().includes(q)))
-    // Needs most attention first: worst health, then blockers, then least progress.
-    .sort((a, b) => (HEALTH_RANK[a.health] ?? 2) - (HEALTH_RANK[b.health] ?? 2)
-      || Number(!!b.blockers) - Number(!!a.blockers) || a.progress - b.progress);
+  const data = await loadAll();
+  const { contacts, onboarding } = data;
+  const cards = filterContacts(contacts.filter((c) => c.stage === "Onboarding"), f)
+    .map((c) => onboardingView(onboarding.find((o) => o.contact_id === c.id), c, amount(c.deal_value)));
+  const speed = onboardingSpeed(data, "all");
 
   return (
     <>
-      <PageHeader title="Onboarding" stage="onboarding" subtitle="Get each new client through the onboarding checklist. Neediest first; click a step to check it off." />
-      <FilterBar owners={owners(contacts)} show={["owner"]} />
-      {items.length
-        ? <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">{items.map((i) => <OnboardingCard key={i.id} item={i} />)}</div>
-        : <Empty>No one is onboarding yet. Move a qualified client here from the Outreach board.
-          <Link href="/board" className="btn btn-sm ml-2">Open Outreach board</Link></Empty>}
+      <PageHeader title="Onboarding" stage="onboarding" />
+      <InsightStrip href="/insights#onboarding" summary={speed.enough
+        ? <>Average days per stage{speed.avgToFirstValue !== null && <> · first value in <b>{speed.avgToFirstValue} days</b></>}{speed.stuck.length ? <> · <span className="font-medium text-coral">{speed.stuck.length} slower than average</span></> : null}</>
+        : <span className="text-muted">Onboarding speed: not enough finished stages yet.</span>}>
+        {speed.enough
+          ? <HBars mini color="#d69a2d" rows={speed.stages.map((s) => ({ label: s.label, value: s.avg }))} format={(v) => `${v}d`} />
+          : <p className="muted">Average days per stage shows here once a few clients have moved through a stage.</p>}
+      </InsightStrip>
+      <FilterBar owners={owners(contacts)} show={owners(contacts).length > 1 ? ["owner"] : []} />
+      <OnboardingBoard key={JSON.stringify(cards)} stages={ONBOARDING_STAGES.map(({ key, label, description }) => ({ key, label, description }))} initial={cards} />
     </>
   );
 }

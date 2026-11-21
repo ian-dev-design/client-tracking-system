@@ -4,6 +4,7 @@
 import { config } from "@/lib/config";
 import { store, ONBOARDING_STEPS, RETENTION_SIGNALS, type Row, type TableName } from "@/lib/data";
 import type { Step } from "@/lib/target";
+import { ONBOARDING_STAGES, currentStage, enteredCol, stageByKey, stageIndex } from "@/lib/onboarding";
 import { addDays, isTrue, newId, nowStamp, today } from "@/lib/util";
 import { isPerson, team } from "@/lib/team";
 import { notify, taskEmailLines } from "@/lib/notify";
@@ -22,16 +23,29 @@ export async function logActivity(user: string, action: string, table: TableName
 export async function loadAll() {
   const s = store();
   const [contacts, interactions, surveys, interviews, themes, onboarding, retention, drafts, templates, guides,
-    organizations, sites, tasks, transcripts] = await Promise.all([
+    organizations, sites, tasks, transcripts, stageHistory] = await Promise.all([
     s.list("contacts"), s.list("interactions"), s.list("surveys"), s.list("interviews"),
     s.list("research_themes"), s.list("onboarding"), s.list("retention"), s.list("drafts"),
     s.list("email_templates"), s.list("interview_guides"), s.list("organizations"), s.list("sites"), s.list("tasks"),
-    s.list("transcripts"),
+    s.list("transcripts"), s.list("stage_history"),
   ]);
   return { contacts, interactions, surveys, interviews, themes, onboarding, retention, drafts, templates, guides,
-    organizations, sites, tasks, transcripts };
+    organizations, sites, tasks, transcripts, stageHistory };
 }
 export type AllData = Awaited<ReturnType<typeof loadAll>>;
+
+/**
+ * One row per stage move (pipeline, research or onboarding), with who and when. The Insights page reads it.
+ * If the Sheet doesn't have the stage_history tab yet (before setup-sheet), the move still happens and is
+ * still in the activity log and timeline; only this extra row is skipped.
+ */
+export async function recordStageHistory(contactId: string, track: "pipeline" | "research" | "onboarding", from: string, to: string, actor: string) {
+  try {
+    await store().insert("stage_history", { id: newId("sh"), contact_id: contactId, track, from_stage: from || "", to_stage: to, at: nowStamp(), by: actor });
+  } catch (err) {
+    console.warn(`stage_history not saved (run setup-sheet to add the tab): ${(err as Error).message}`);
+  }
+}
 
 export async function getContact(id: string): Promise<Contact | undefined> {
   return (await store().list("contacts")).find((c) => c.id === id);
@@ -62,6 +76,8 @@ export async function createContact(input: Row, actor: string): Promise<Contact>
   );
   await store().insert("contacts", contact);
   await logActivity(actor, "create", "contacts", contact.id, contact.name);
+  if (contact.stage) await recordStageHistory(contact.id, "pipeline", "", contact.stage, actor);
+  if (contact.research_status) await recordStageHistory(contact.id, "research", "", contact.research_status, actor);
   await notifyClientAssigned(contact, actor);
   return contact;
 }
@@ -93,6 +109,9 @@ export async function updateContact(id: string, patch: Row, actor: string): Prom
   changes.updated_by = actor;
   const saved = await store().update("contacts", id, changes);
   await logActivity(actor, "update", "contacts", id, Object.keys(changes).filter((k) => !k.startsWith("updated")).join(", "));
+  // Every stage change lands in stage_history, whichever path made it (board drag, outreach sent, import…).
+  if (changes.stage !== undefined) await recordStageHistory(id, "pipeline", current.stage, changes.stage, actor);
+  if (changes.research_status !== undefined) await recordStageHistory(id, "research", current.research_status, changes.research_status, actor);
   if (changes.owner !== undefined) {
     await logActivity(actor, "reassign", "contacts", id, `${actor} reassigned ${current.name} to ${changes.owner} (was ${current.owner || "no owner"})`);
     await notifyClientAssigned({ ...current, ...changes }, actor);
@@ -119,6 +138,8 @@ export async function moveStage(id: string, field: "stage" | "research_status", 
   // The deal is won once they start onboarding; lost if they drop out before that.
   if (field === "stage" && ["Onboarding", "Active / Retention"].includes(value) && c.deal_status !== "won") patch.deal_status = "won";
   if (field === "stage" && value === "Churned / Lost" && c.deal_status !== "won") patch.deal_status = "lost";
+  // New retention clients get a renewal date a year out (editable on the profile); the value defaults to the deal value.
+  if (field === "stage" && value === "Active / Retention" && !c.renewal_date) patch.renewal_date = addDays(today(), 365);
   const saved = await updateContact(id, patch, actor);
   await logInteraction({
     contact_id: id, type: "note", channel: "other",
@@ -224,13 +245,64 @@ export async function ensureOnboardingRow(contactId: string, actor: string): Pro
   const existing = (await store().list("onboarding")).find((r) => r.contact_id === contactId);
   if (existing) return existing;
   const now = nowStamp();
+  const first = ONBOARDING_STAGES[0];
   const row: Row = {
     id: newId("ob"), contact_id: contactId, start_date: today(), progress_pct: "0", health: "green",
     blockers: "", created_at: now, updated_at: now, updated_by: actor,
+    onboarding_stage: first.key, [enteredCol(first.key)]: now,
   };
   await store().insert("onboarding", row);
   await logActivity(actor, "create", "onboarding", row.id, contactId);
+  await recordStageHistory(contactId, "onboarding", "", first.key, actor);
   return row;
+}
+
+/**
+ * Move a client to another onboarding stage (board drag or "Move to next stage").
+ * Stamps when they entered it (for time-in-stage), and logs who moved them in the activity log,
+ * the timeline and stage_history.
+ */
+export async function moveOnboardingStage(contactId: string, to: string, actor: string): Promise<Row> {
+  const stage = stageByKey(to);
+  if (!stage) throw new Error(`Unknown onboarding stage: ${to}`);
+  const c = await getContact(contactId);
+  if (!c) throw new Error("Contact not found");
+  if (c.stage !== "Onboarding") throw new Error(`${c.name} isn't in Onboarding.`);
+  const row = await ensureOnboardingRow(contactId, actor);
+  const from = currentStage(row);
+  if (from.key === to) return row;
+  const now = nowStamp();
+  const patch: Row = { onboarding_stage: to, [enteredCol(to)]: now, updated_at: now, updated_by: actor };
+  const saved = await store().update("onboarding", row.id, patch);
+  await logActivity(actor, "move", "onboarding", row.id, `${actor} moved ${c.name} from ${from.label} to ${stage.label}`);
+  await recordStageHistory(contactId, "onboarding", from.key, to, actor);
+  await logInteraction({ contact_id: contactId, type: "note", channel: "other", summary: `Onboarding: ${from.label} → ${stage.label}` }, actor);
+  if (stageIndex(to) > stageIndex(from.key)) {
+    await notify({
+      to: c.owner, type: "stage_move", by: actor, link: `/onboarding/${contactId}`, eventKey: `onboarding:${contactId}:${to}:${now}`,
+      title: `${actor} moved ${c.name} to ${stage.label}`,
+    });
+  }
+  return saved;
+}
+
+/** Last onboarding stage done: stamp completed_at and move the client to Active / Retention. */
+export async function completeOnboarding(contactId: string, actor: string) {
+  const row = await ensureOnboardingRow(contactId, actor);
+  const now = nowStamp();
+  await store().update("onboarding", row.id, { completed_at: now, updated_at: now, updated_by: actor });
+  await logActivity(actor, "complete", "onboarding", row.id, contactId);
+  return moveStage(contactId, "stage", "Active / Retention", actor);
+}
+
+/** The client renewed: record when, and their next renewal date. */
+export async function renewClient(contactId: string, nextDate: string, actor: string) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(nextDate || "")) throw new Error("Pick the next renewal date.");
+  const c = await getContact(contactId);
+  if (!c) throw new Error("Contact not found");
+  const saved = await updateContact(contactId, { last_renewed_at: nowStamp(), renewal_date: nextDate }, actor);
+  await logInteraction({ contact_id: contactId, type: "note", channel: "other", summary: `Renewed · next renewal ${nextDate}` }, actor);
+  return saved;
 }
 
 /** The customer's retention-signals row, created (nothing checked) if missing. */

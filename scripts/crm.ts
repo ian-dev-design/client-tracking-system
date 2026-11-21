@@ -76,10 +76,11 @@ Interviews    attach-transcript <interviewId> <file>   store a transcript word f
               interviews-pending               interviews whose findings aren't extracted yet
               transcript-text <interviewId>
 Tables        list <table>  |  get <table> <id>  |  upsert <table> <matchField> '<json>'
-Setup         setup-sheet                      create tabs, headers, default templates & guides
+Setup         setup-sheet                      create tabs, headers, default templates & guides (only adds)
+              migrate-process [--apply]        fill onboarding stages + stage history for older data (dry run without --apply)
               refresh-defaults                 rewrite default templates & guides from config.json
               survey-script                    regenerate apps-script/create-crm.gs from config.json
-              seed-sample                      add the 6 fake contacts (skips any already there)
+              seed-sample                      add the fake sample contacts (skips any already there)
               format-timestamps                rewrite old ISO timestamps in the Sheet as "YYYY-MM-DD HH:MM"
               seed-demo                        reset local demo data
 JSON args can be inline, @file.json, or - (stdin). Backend: ${dataBackend()}.`;
@@ -176,6 +177,11 @@ async function main() {
       }
       return out({ created_tabs: created, ok: true });
     }
+    case "migrate-process": {
+      // Fills blank onboarding-stage cells and backfills stage history. Dry run unless --apply.
+      const { migrateProcess } = await import("@/lib/migrate");
+      return out(await migrateProcess(a === "--apply", actor));
+    }
     case "refresh-defaults": {
       // After changing targetCustomer in config.json: rewrite the default templates and guides (matched by name).
       // Templates or guides you added under other names are left alone.
@@ -198,13 +204,13 @@ async function main() {
       // safe to re-run after an interruption and never duplicates or touches your own rows.
       const { tables } = buildSampleData();
       let added = 0;
-      for (const t of ["organizations", "contacts", "sites", "tasks", "interactions", "surveys", "interviews", "transcripts", "research_themes", "onboarding", "retention"] as TableName[]) {
+      for (const t of ["organizations", "contacts", "sites", "tasks", "interactions", "surveys", "interviews", "transcripts", "research_themes", "onboarding", "retention", "stage_history"] as TableName[]) {
         const have = new Set((await store().list(t)).map((r) => r.id));
         for (const row of tables[t]) if (!have.has(row.id)) { await store().insert(t, row); added++; }
       }
-      return out(`Added ${added} sample rows (6 fake contacts, @example.com). Delete them from the Sheet when you're done.`);
+      return out(`Added ${added} sample rows (fake contacts, @example.com). Delete them from the Sheet when you're done.`);
     }
-    case "seed-demo": resetDemoData(); return out("Demo data reset to the 6 sample contacts.");
+    case "seed-demo": resetDemoData(); return out("Demo data reset to the sample contacts.");
 
     default: throw new Error(`Unknown command "${cmd}". Run: npm run crm -- help`);
   }

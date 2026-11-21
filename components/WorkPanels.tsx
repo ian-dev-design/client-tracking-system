@@ -10,7 +10,7 @@ import { AddInterviewModal } from "./AddInterview";
 import { DraftEditor } from "./DraftOutreach";
 import { LogInteractionForm } from "./LogInteraction";
 import { postJson } from "./Modal";
-import { OnboardingCard, type OnboardingView } from "./OnboardingCard";
+import { OnboardingField, StageChecklist, type OnboardingView } from "./OnboardingCard";
 import { UrgentTag } from "./TaskList";
 import { Spinner } from "./ui";
 import { toast } from "./Toast";
@@ -123,9 +123,15 @@ export function WorkTask({ task, client, nextHref }: { task: Record<string, stri
   );
 }
 
-/** Onboarding: the checklist with clickable steps, blockers and health. */
+/** Onboarding: the current stage's checklist, the move-forward button, and the blockers. */
 export function WorkOnboarding({ item }: { item: OnboardingView }) {
-  return <OnboardingCard item={item} />;
+  return (
+    <div className="space-y-6">
+      <StageChecklist view={item} showOthers={false} />
+      <OnboardingField view={item} field="blockers" />
+      <Link href={`/onboarding/${item.contactId}`} className="text-sm font-medium text-info hover:underline">Open full onboarding →</Link>
+    </div>
+  );
 }
 
 /** Quiet client: a drafted check-in, and a place to log the conversation. */

@@ -97,6 +97,8 @@ export function ContactForm({ initial, owners, organizations, defaultOwner }: {
         {field("quote_amount", "Quote amount ($)", "text", false, { inputMode: "decimal" })}
         {field("expected_close_date", "Expected close date", "date")}
         {select("deal_status", "Won / lost", DEAL_STATUSES, "open", { open: "Open", won: "Won", lost: "Lost" })}
+        {field("renewal_date", "Next renewal date", "date")}
+        {field("renewal_value", "Renewal value ($)", "text", false, { inputMode: "decimal", placeholder: "Blank = deal value" })}
       </>)}
 
       <fieldset className="border-t border-line pt-5">

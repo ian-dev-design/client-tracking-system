@@ -85,3 +85,92 @@ export function StackedBar({ data, format = String }: { data: Slice[]; format?: 
     </div>
   );
 }
+
+// ---------- Insights charts (plain HTML/SVG, server-rendered) ----------
+
+export type FunnelRow = { label: string; count: number; pctPrev: number; pctStart: number; drop: boolean };
+
+/**
+ * Horizontal funnel: one bar per step, width = share of the first step.
+ * Shows the count, % kept from the previous step and % of the start; the biggest drop gets a coral marker.
+ * `mini` = one slim bar per step with just the count (for the stage-page strips).
+ */
+export function FunnelBars({ steps, color, mini = false }: { steps: FunnelRow[]; color: string; mini?: boolean }) {
+  const max = Math.max(1, steps[0]?.count || 0);
+  const n = steps.length;
+  return (
+    <ol className={mini ? "space-y-1" : "space-y-2.5"}>
+      {steps.map((s, i) => {
+        const fill = `color-mix(in srgb, ${color} ${Math.round(40 + (i / Math.max(1, n - 1)) * 60)}%, #ffffff)`;
+        return (
+          <li key={s.label} className={`grid items-center gap-3 ${mini ? "grid-cols-[6.5rem_1fr_2rem] text-xs" : "grid-cols-[8.5rem_1fr_8.5rem] text-sm"}`}>
+            <span className="truncate text-ink">{s.label}</span>
+            <span className={`relative block bg-wash ${mini ? "h-2" : "h-6"}`}>
+              <span className="block h-full" style={{ width: `${(s.count / max) * 100}%`, background: fill }} />
+              {!mini && <span className="absolute inset-y-0 left-2 flex items-center text-xs font-semibold tabular-nums text-ink">{s.count}</span>}
+            </span>
+            {mini ? <span className="text-right tabular-nums text-muted">{s.count}</span> : (
+              <span className="flex items-center justify-end gap-2 text-xs tabular-nums text-muted">
+                {i > 0 && <span className={s.drop ? "rounded-xs bg-coral/10 px-1.5 py-0.5 font-semibold text-coral" : ""}
+                  title={s.drop ? "Biggest drop" : undefined}>{s.pctPrev}% kept</span>}
+                <span>{s.pctStart}%</span>
+              </span>
+            )}
+          </li>
+        );
+      })}
+    </ol>
+  );
+}
+
+/** Horizontal bars with a value label, e.g. average days per stage. A null value shows "—". */
+export function HBars({ rows, color, format = String, mini = false }: {
+  rows: { label: string; value: number | null; hint?: string }[]; color: string; format?: (v: number) => string; mini?: boolean;
+}) {
+  const max = Math.max(1, ...rows.map((r) => r.value || 0));
+  return (
+    <ul className={mini ? "space-y-1" : "space-y-2.5"}>
+      {rows.map((r) => (
+        <li key={r.label} className={`grid items-center gap-3 ${mini ? "grid-cols-[6.5rem_1fr_3rem] text-xs" : "grid-cols-[8.5rem_1fr_5rem] text-sm"}`}>
+          <span className="truncate text-ink">{r.label}</span>
+          <span className={`block bg-wash ${mini ? "h-2" : "h-4"}`} title={r.hint}>
+            {r.value !== null && <span className="block h-full" style={{ width: `${(r.value / max) * 100}%`, background: color }} />}
+          </span>
+          <span className="text-right tabular-nums text-muted">{r.value !== null ? format(r.value) : "—"}</span>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+/** Percent over time: a simple line with dots, 0–100% axis, month labels underneath. Gaps (null) break the line. */
+export function LineChart({ points, color }: { points: { label: string; rate: number | null }[]; color: string }) {
+  const W = 340, H = 170, L = 32, R = 10, T = 10, B = 24;
+  const x = (i: number) => L + (points.length === 1 ? (W - L - R) / 2 : (i / (points.length - 1)) * (W - L - R));
+  const y = (v: number) => T + (1 - v / 100) * (H - T - B);
+  const segments: string[] = [];
+  let cur: string[] = [];
+  points.forEach((p, i) => {
+    if (p.rate === null) { if (cur.length) segments.push(cur.join(" ")); cur = []; return; }
+    cur.push(`${x(i)},${y(p.rate)}`);
+  });
+  if (cur.length) segments.push(cur.join(" "));
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} className="h-auto w-full" role="img"
+      aria-label={points.map((p) => `${p.label} ${p.rate === null ? "no data" : `${p.rate}%`}`).join(", ")}>
+      {[0, 50, 100].map((v) => (
+        <g key={v}>
+          <line x1={L} x2={W - R} y1={y(v)} y2={y(v)} stroke="var(--color-line)" strokeWidth="1" />
+          <text x={L - 6} y={y(v)} textAnchor="end" dominantBaseline="central" className="fill-faint text-[10px]">{v}%</text>
+        </g>
+      ))}
+      {segments.map((s, i) => <polyline key={i} points={s} fill="none" stroke={color} strokeWidth="2" strokeLinejoin="round" />)}
+      {points.map((p, i) => (
+        <g key={i}>
+          {p.rate !== null && <circle cx={x(i)} cy={y(p.rate)} r="3.5" fill="#fff" stroke={color} strokeWidth="2"><title>{`${p.label}: ${p.rate}%`}</title></circle>}
+          <text x={x(i)} y={H - 8} textAnchor="middle" className="fill-muted text-[10px]">{p.label}</text>
+        </g>
+      ))}
+    </svg>
+  );
+}

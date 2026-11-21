@@ -29,26 +29,89 @@
     "workArea": "grounds and land maintenance",
     "welcomeNote": "The herd is ready to get to work (they've been chewing on the idea)."
   },
-  "onboardingSteps": [
+  "onboardingStages": [
     {
-      "key": "site_visit",
-      "label": "Site visit"
+      "key": "handoff",
+      "label": "Handoff",
+      "description": "Sales hands over the key context: what was promised, key contacts and goals.",
+      "steps": [
+        {
+          "key": "handoff_meeting",
+          "label": "Handoff call with sales"
+        },
+        {
+          "key": "quote_approved",
+          "label": "Quote approved"
+        },
+        {
+          "key": "key_contacts",
+          "label": "Key contacts recorded"
+        }
+      ]
     },
     {
-      "key": "quote_approved",
-      "label": "Quote approved"
+      "key": "welcome",
+      "label": "Welcome",
+      "description": "Welcome email sent, kickoff scheduled, expectations and success goals set.",
+      "steps": [
+        {
+          "key": "welcome_sent",
+          "label": "Welcome email sent"
+        },
+        {
+          "key": "kickoff_scheduled",
+          "label": "Kickoff call scheduled"
+        },
+        {
+          "key": "expectations_set",
+          "label": "Expectations and success goals agreed"
+        }
+      ]
     },
     {
-      "key": "herd_delivered",
-      "label": "Herd delivered"
+      "key": "setup",
+      "label": "Setup",
+      "description": "The client’s site is set up: visited, ready, and the herd delivered.",
+      "steps": [
+        {
+          "key": "site_visit",
+          "label": "Site visit"
+        },
+        {
+          "key": "herd_delivered",
+          "label": "Herd delivered"
+        }
+      ]
     },
     {
-      "key": "grazing_completed",
-      "label": "Grazing completed"
+      "key": "first_value",
+      "label": "First value",
+      "description": "The first win is delivered.",
+      "steps": [
+        {
+          "key": "grazing_completed",
+          "label": "Grazing completed"
+        },
+        {
+          "key": "results_shared",
+          "label": "Before-and-after photos shared"
+        }
+      ]
     },
     {
-      "key": "followup_checkin",
-      "label": "Follow-up check-in"
+      "key": "success_review",
+      "label": "Success review",
+      "description": "Review progress against the success goals, then plan what’s next.",
+      "steps": [
+        {
+          "key": "followup_checkin",
+          "label": "Follow-up check-in"
+        },
+        {
+          "key": "next_season_planned",
+          "label": "Next season planned"
+        }
+      ]
     }
   ],
   "retentionSignals": [

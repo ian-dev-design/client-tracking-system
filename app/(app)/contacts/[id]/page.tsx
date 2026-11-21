@@ -2,9 +2,11 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { aiEnabled } from "@/lib/ai";
 import { isProspect, isResearch, loadAll, ownershipHistory } from "@/lib/crm";
-import { PIPELINE_STAGES, RESEARCH_STATUSES } from "@/lib/data";
+import { PIPELINE_STAGES, RESEARCH_STATUSES, RETENTION_SIGNALS } from "@/lib/data";
 import { JOURNEY, journeyOfContact } from "@/lib/journey";
 import { money } from "@/lib/target";
+import { onboardingView } from "@/lib/onboarding";
+import { clientHealth, healthLabel, renewalValue } from "@/lib/retention";
 import { formatDate, isTrue, splitList, today } from "@/lib/util";
 import { actionFor, clientOptions, isOverdue, params, people, readyForInterview, sortTasks } from "@/lib/views";
 import { currentUser } from "@/lib/auth";
@@ -14,6 +16,7 @@ import { SitesList } from "@/components/Sites";
 import { TaskList } from "@/components/TaskList";
 import { NewTaskButton } from "@/components/TaskForm";
 import { TypeBadge } from "@/components/ui";
+import { RetentionSignals } from "@/components/RetentionCard";
 
 const DEAL_LABEL: Record<string, { text: string; cls: string }> = {
   won: { text: "Won", cls: "bg-success/12 text-outreach-ink" },
@@ -81,7 +84,7 @@ export default async function ContactPage({ params: p, searchParams }: {
 }) {
   const { id } = await p;
   const f = params(await searchParams);
-  const [user, { contacts, interactions, surveys, interviews, onboarding, organizations, sites, tasks, transcripts }] =
+  const [user, { contacts, interactions, surveys, interviews, onboarding, retention, organizations, sites, tasks, transcripts }] =
     await Promise.all([currentUser(), loadAll()]);
   const c = contacts.find((x) => x.id === id);
   if (!c) notFound();
@@ -206,11 +209,21 @@ export default async function ContactPage({ params: p, searchParams }: {
                     {openTasks[0].due_date && <span className="text-muted"> · due {formatDate(openTasks[0].due_date)}</span>}
                   </li>
                 )}
-                {ob && (
+                {ob && c.stage === "Onboarding" && (() => {
+                  const v = onboardingView(ob, c);
+                  return (
+                    <li>
+                      Onboarding: <span className="font-medium">{v.stageLabel}</span> · {v.done} of {v.total} steps · {healthLabel(v.health).toLowerCase()}
+                      {v.blockers && <span className="text-muted"> · Blocked: {v.blockers}</span>}
+                      {" "}<Link href={`/onboarding/${c.id}`} className="link">Open onboarding</Link>
+                    </li>
+                  );
+                })()}
+                {c.stage === "Active / Retention" && (
                   <li>
-                    Onboarding {ob.progress_pct || 0}% complete · health {ob.health || "green"}
-                    {ob.blockers && <span className="text-muted"> · Blocked: {ob.blockers}</span>}
-                    {" "}<Link href="/onboarding" className="link">Open tracker</Link>
+                    {(() => { const h = clientHealth(c, interactions, tasks); return <>Health: <span className="font-medium">{healthLabel(h.health)}</span>{h.manual && " (set by hand)"} · {h.reason}</>; })()}
+                    {c.renewal_date && <> · renews {formatDate(c.renewal_date)}</>}
+                    {" "}<Link href="/retention" className="link">Open retention</Link>
                   </li>
                 )}
                 {c.lost_reason && <li className="text-coral">Lost: {c.lost_reason}</li>}
@@ -242,6 +255,16 @@ export default async function ContactPage({ params: p, searchParams }: {
                   <StatusSelect contactId={c.id} field="research_status" value={c.research_status} options={RESEARCH_STATUSES} /></div>}
               </div>
             </section>
+            {c.stage === "Active / Retention" && (() => {
+              const rt = retention.find((r) => r.contact_id === id);
+              return (
+                <section>
+                  <Title>Retention signals</Title>
+                  <RetentionSignals item={{ id: rt?.id || "", contactId: id, notes: rt?.notes || "",
+                    signals: RETENTION_SIGNALS.map((s) => ({ key: s.key, label: s.label, done: isTrue(rt?.[s.key] || ""), date: rt?.[`${s.key}_date`] || "" })) }} />
+                </section>
+              );
+            })()}
             <section>
               <Title right={<Link href={`/contacts/${id}/edit`} className="text-xs font-medium text-info hover:underline">Edit</Link>}>Details</Title>
               <dl className="grid grid-cols-2 gap-3 border-t border-line pt-3">
@@ -298,6 +321,13 @@ export default async function ContactPage({ params: p, searchParams }: {
             <Field label="Quote">{c.quote_amount && money(c.quote_amount)}</Field>
             <Field label={c.deal_status === "won" ? "Closed" : "Expected close"}>{c.expected_close_date && formatDate(c.expected_close_date)}</Field>
           </dl>
+          {(c.stage === "Active / Retention" || c.renewal_date || c.renewal_value) && (
+            <dl className="mt-4 grid grid-cols-3 gap-4 border-t border-line pt-4">
+              <Field label="Next renewal">{c.renewal_date && formatDate(c.renewal_date)}</Field>
+              <Field label="Renewal value">{renewalValue(c) > 0 && <>{money(renewalValue(c))}{!c.renewal_value && <span className="text-xs text-faint"> (deal value)</span>}</>}</Field>
+              <Field label="Last renewed">{c.last_renewed_at && formatDate(c.last_renewed_at)}</Field>
+            </dl>
+          )}
           <Link href={`/contacts/${c.id}/edit`} className="btn btn-sm mt-5">Edit deal</Link>
         </section>
       )}

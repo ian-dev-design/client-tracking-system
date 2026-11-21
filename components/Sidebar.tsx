@@ -41,6 +41,7 @@ export function Sidebar({ counts, userName, demo, notifications }: { counts: Cou
         {link("/", "Dashboard")}
         {link("/tasks", "My tasks", counts.tasks, counts.tasks > 0)}
         {link("/team", "Team")}
+        {link("/insights", "Insights")}
 
         {heading("Journey")}
         <div className="flex flex-col gap-1">

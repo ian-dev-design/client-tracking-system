@@ -3,12 +3,13 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { DndContext, PointerSensor, useDraggable, useDroppable, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
+import { DndContext, PointerSensor, useDraggable, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import { journey, stageShades, type JourneyKey } from "@/lib/journey";
 import { moneyShort } from "@/lib/target";
 import { DraftOutreachModal } from "./DraftOutreach";
 import { LogInteractionModal } from "./LogInteraction";
 import { postJson } from "./Modal";
+import { Column } from "./StageBoard";
 import { Avatar } from "./ui";
 import { MoveButton } from "./Widgets";
 import { toast } from "./Toast";
@@ -91,35 +92,6 @@ function Card({ card, accent, selected, onSelect, canOnboard, testRedirect }: {
   );
 }
 
-// Arrow-shaped column header. The first one has a flat left edge.
-const CHEVRON = (first: boolean) =>
-  `polygon(0 0, calc(100% - 10px) 0, 100% 50%, calc(100% - 10px) 100%, 0 100%${first ? "" : ", 10px 50%"})`;
-
-function Column({ stage, index, count, value, shade, children }: {
-  stage: string; index: number; count: number; value: number; shade: { bg: string; fg: string; edge: string }; children: React.ReactNode;
-}) {
-  const { setNodeRef, isOver } = useDroppable({ id: stage });
-  return (
-    <div ref={setNodeRef} className={`flex shrink-0 flex-col ${count ? "w-64 min-w-60 flex-1" : "w-44 min-w-40 flex-[0.6]"}`}>
-      <div className={`mb-3 flex h-10 items-center justify-between gap-2 pr-5 ${index ? "pl-5" : "pl-3"}`}
-        style={{ background: shade.bg, color: shade.fg, boxShadow: `inset 0 -2px 0 ${shade.edge}`, clipPath: CHEVRON(index === 0) }}>
-        <span className="truncate text-[11px] font-semibold uppercase tracking-[0.08em]">{stage}</span>
-        <span className="shrink-0 text-xs tabular-nums">
-          {value > 0 && <span className="mr-2 opacity-80">{moneyShort(value)}</span>}
-          <span className="font-semibold">{count}</span>
-        </span>
-      </div>
-      <div className={`flex min-h-28 flex-1 flex-col gap-2 p-1 transition-colors ${isOver ? "bg-forest/[0.05] outline-2 outline-dashed outline-forest/40" : ""}`}>
-        {count ? children : (
-          <div className="flex flex-col items-start border border-dashed border-line p-3 text-xs leading-relaxed text-muted">
-            {EMPTY_HINT[stage] || "Drag a card here."}
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
 /** Drag-and-drop board. `field` is which column a card sits in: pipeline stage or research status. */
 export function Board({ stages, field, track, initial, testRedirect }: {
   stages: string[]; field: "stage" | "research_status"; track: JourneyKey; initial: BoardCard[];
@@ -169,8 +141,8 @@ export function Board({ stages, field, track, initial, testRedirect }: {
           {stages.map((stage, i) => {
             const inStage = cards.filter((c) => c[field] === stage);
             return (
-              <Column key={stage} stage={stage} index={i} count={inStage.length} shade={shades[i]}
-                value={inStage.reduce((s, c) => s + c.value, 0)}>
+              <Column key={stage} id={stage} label={stage} index={i} count={inStage.length} shade={shades[i]}
+                value={inStage.reduce((s, c) => s + c.value, 0)} hint={EMPTY_HINT[stage]}>
                 {inStage.map((c) => (
                   <Card key={c.id} card={c} accent={j.border} selected={selected.includes(c.id)} onSelect={() => toggle(c.id)}
                     canOnboard={field === "stage" && c.stage === "Qualified"} testRedirect={testRedirect} />

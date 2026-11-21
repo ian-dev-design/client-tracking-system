@@ -2,9 +2,10 @@ import fs from "node:fs";
 import path from "node:path";
 import { DEFAULT_GUIDES, DEFAULT_TEMPLATES, SURVEY_QUESTIONS } from "@/lib/defaults";
 import { addDays, today } from "@/lib/util";
+import { ONBOARDING_STAGES, enteredCol } from "@/lib/onboarding";
 import type { Row, TableName } from "./schema";
 
-// Six FAKE contacts for previewing the UI, written for the GoatOps example in config.json
+// FAKE contacts for previewing the UI, written for the GoatOps example in config.json
 // (goat grazing for organizations with land to maintain). All names, organizations and quotes are made up.
 // Quotes are copied word for word from the fake transcripts in sample-data/.
 // Dates are relative to today so the demo always looks current.
@@ -18,6 +19,13 @@ import type { Row, TableName } from "./schema";
 //
 // Each contact belongs to an organization; Millbrook, Cedar Hollow and Willow Creek have several sites.
 // Deals: $50.5k open across Dana, Priya and Tom; Grace and Luis are won. A few tasks, one assigned to a teammate.
+//
+// Plus 16 more (bottom of this file) so the boards and Insights look real, spread over ~90 days:
+//   Outreach    Nina (Outreach), Marcus (Qualified); lost: Carla (at Outreach), Brian (at Survey), Ethan (at Interview)
+//   Onboarding  Ray (Handoff), Sofia (Welcome), Grace + Ken (Setup; Grace is stuck), Amara (First value), Jo (Success review)
+//   Retention   Hannah (healthy, renews in 20 days), Owen (at risk: quiet 50 days), Mei (just renewed),
+//               Victor (overdue task, set to healthy by hand), Luis (quiet 5 weeks); churned: Paul and Diane, each with a reason
+// Every contact has stage history; finished onboardings have stage timestamps, so Insights has averages.
 
 export function buildSampleData(): { tables: Record<TableName, Row[]>; raw: string[][] } {
   const t = today();
@@ -42,7 +50,7 @@ export function buildSampleData(): { tables: Record<TableName, Row[]>; raw: stri
     contact({ id: "c_grace", name: "Grace Kim", company: "Willow Creek Apartments", role: "Property Manager",
       email: "grace.kim@example.com", source: "Referral from Luis Ortega",
       contact_type: "prospect", stage: "Onboarding", owner: "Ian", fit_score: "4", next_followup_date: d(2),
-      notes: "Two-acre back lot along the creek; residents asked for no weed killer.", ...base(-30) }),
+      notes: "Two-acre back lot along the creek; residents asked for no weed killer.", ...base(-56) }),
     contact({ id: "c_luis", name: "Luis Ortega", company: "Cedar Hollow HOA", role: "Community Operations Manager",
       email: "luis.ortega@example.com", source: "Inbound (website)",
       contact_type: "prospect", stage: "Active / Retention", owner: "Ian", fit_score: "4", next_followup_date: d(5),
@@ -58,7 +66,7 @@ export function buildSampleData(): { tables: Record<TableName, Row[]>; raw: stri
     { id: "org_ridgeview", name: "Ridgeview Office Park", type: "Office park", address: "400 Ridgeview Pkwy, Millbrook", notes: "Three buildings; landscaping contract renews in March.", ...base(-6) },
     { id: "org_northgate", name: "Northgate University", type: "School or university", address: "1 University Ave, Northgate", notes: "Campus climate pledge: cut gas equipment 50% by 2028.", ...base(-12) },
     { id: "org_millbrook", name: "City of Millbrook Parks Department", type: "City or parks department", address: "210 Main St, Millbrook", notes: "Superintendent can approve up to $25k; above that goes to council.", ...base(-20) },
-    { id: "org_willow", name: "Willow Creek Apartments", type: "Apartment complex", address: "88 Creekside Dr, Millbrook", notes: "", ...base(-30) },
+    { id: "org_willow", name: "Willow Creek Apartments", type: "Apartment complex", address: "88 Creekside Dr, Millbrook", notes: "", ...base(-56) },
     { id: "org_cedar", name: "Cedar Hollow HOA", type: "HOA", address: "Cedar Hollow Rd, Ashford", notes: "Board meets the first Tuesday of the month.", ...base(-120) },
     { id: "org_pinevalley", name: "Pine Valley Golf Club", type: "Golf course", address: "5 Fairway Ln, Ashford", notes: "", ...base(-25) },
   ];
@@ -204,16 +212,8 @@ export function buildSampleData(): { tables: Record<TableName, Row[]>; raw: stri
       example_quotes: "The fire marshal flagged it twice last summer.", last_updated: d(-1) },
   ];
 
-  // Onboarding columns follow onboardingSteps in config.json.
-  const onboarding: Row[] = [
-    { id: "ob_grace", contact_id: "c_grace", start_date: d(-16),
-      site_visit: "TRUE", site_visit_date: d(-16),
-      quote_approved: "TRUE", quote_approved_date: d(-12),
-      herd_delivered: "TRUE", herd_delivered_date: d(-3),
-      grazing_completed: "", grazing_completed_date: "",
-      followup_checkin: "", followup_checkin_date: "",
-      progress_pct: "60", health: "yellow", blockers: "Fence line by the creek needs repair before the herd can graze the back lot.", ...base(-16) },
-  ];
+  // Onboarding rows are built further down (with stage timestamps) by obRow().
+  const onboarding: Row[] = [];
 
   // Retention columns follow retentionSignals in config.json.
   const retention: Row[] = [
@@ -224,6 +224,8 @@ export function buildSampleData(): { tables: Record<TableName, Row[]>; raw: stri
       notes: "Board may add the retention pond next year.", ...base(-110) },
   ];
 
+  addProcessHistory({ contacts, organizations, onboarding, retention, interactions, tasks, d, ts, base, contact });
+
   const email_templates = DEFAULT_TEMPLATES.map((tpl, i) => ({ id: `t_${i + 1}`, ...tpl, last_updated: t }));
   const interview_guides = DEFAULT_GUIDES.map((g, i) => ({ id: `g_${i + 1}`, ...g, last_updated: t }));
 
@@ -231,7 +233,175 @@ export function buildSampleData(): { tables: Record<TableName, Row[]>; raw: stri
     tables: {
       contacts, interactions, surveys, interviews, transcripts, research_themes, onboarding, retention, organizations, sites, tasks,
       email_templates, interview_guides, drafts: [], activity_log: [], notifications: [], notification_settings: [],
+      stage_history: stageHistory(contacts, onboarding, ts),
     },
     raw,
   };
+}
+
+// ---------- Process history: onboarding stages, retention, renewals, churn (all FAKE) ----------
+
+const L = "Lead", O = "Outreach", S = "Survey Completed", I = "Client Interview", Q = "Qualified", ON = "Onboarding", A = "Active / Retention", X = "Churned / Lost";
+
+/** A full sales path ending in onboarding on day h (and Active on day `active`, churned on day `churn`). */
+const won = (h: number, active?: number, churn?: number): [string, number][] =>
+  [[L, h - 28], [O, h - 25], [S, h - 20], [I, h - 14], [Q, h - 7], [ON, h], ...(active !== undefined ? [[A, active] as [string, number]] : []),
+    ...(churn !== undefined ? [[X, churn] as [string, number]] : [])];
+
+/** Pipeline stage history per contact: [stage, day offset from today]. */
+const PATHS: Record<string, [string, number][]> = {
+  c_dana: [[L, -6]],
+  c_priya: [[L, -12], [O, -10], [S, -3]],
+  c_tom: [[L, -20], [O, -18], [S, -14], [I, -5]],
+  c_grace: won(-26),
+  c_luis: won(-135, -110),
+  c_nina: [[L, -9], [O, -7]],
+  c_marcus: [[L, -40], [O, -38], [S, -33], [I, -25], [Q, -12]],
+  c_brian: [[L, -55], [O, -52], [S, -45], [X, -30]],
+  c_carla: [[L, -70], [O, -68], [X, -50]],
+  c_ethan: [[L, -80], [O, -78], [S, -72], [I, -60], [X, -45]],
+  c_ray: won(-2), c_sofia: won(-4), c_ken: won(-10), c_amara: won(-16), c_jo: won(-23),
+  c_hannah: won(-64, -40), c_owen: won(-397, -370), c_mei: won(-403, -380), c_victor: won(-425, -400),
+  c_paul: won(-400, -370, -40), c_diane: won(-327, -300, -70),
+};
+
+/** Onboarding plan: day they entered Handoff, and days spent in each finished stage (5 = completed). */
+const OB_PLANS: Record<string, { h: number; durs: number[]; done?: string[]; health?: string; blockers?: string; handoff?: string; goals?: string }> = {
+  c_ray: { h: -2, durs: [], done: ["handoff_meeting"], handoff: "Promised a site visit within two weeks. Main contact is Ray; invoices go to accounts@.", goals: "" },
+  c_sofia: { h: -4, durs: [1], done: ["welcome_sent"], handoff: "Small lot behind the parish hall. Wants it done before the spring fair.", goals: "Lot clear and tidy for the spring fair." },
+  c_grace: { h: -26, durs: [2, 5], done: ["site_visit"], health: "yellow", blockers: "Fence line by the creek needs repair before the herd can graze the back lot.",
+    handoff: "Residents asked for no weed killer. Grace approves anything under $7k.", goals: "Back lot cleared without chemicals; no resident complaints." },
+  c_ken: { h: -10, durs: [2, 4], done: [], handoff: "Three school sites; start with the north field.", goals: "North field usable for PE by March." },
+  c_amara: { h: -16, durs: [2, 3, 6], done: ["grazing_completed"], handoff: "Steep berm along the parking lot.", goals: "Berm cleared and photos for the tenant newsletter." },
+  c_jo: { h: -23, durs: [2, 4, 7, 8], done: ["followup_checkin"], health: "green", handoff: "HOA board wants a fall booking too.", goals: "Hillside cleared; board votes to rebook." },
+  c_luis: { h: -135, durs: [2, 4, 7, 8, 4] },
+  c_hannah: { h: -64, durs: [1, 3, 6, 9, 5] },
+  c_owen: { h: -397, durs: [3, 5, 8, 7, 4] },
+  c_mei: { h: -403, durs: [2, 4, 6, 8, 3] },
+  c_victor: { h: -425, durs: [2, 3, 7, 9, 4] },
+  c_paul: { h: -400, durs: [2, 5, 9, 10, 4] },
+  c_diane: { h: -327, durs: [3, 4, 8, 7, 5] },
+};
+
+type Ctx = {
+  contacts: Row[]; organizations: Row[]; onboarding: Row[]; retention: Row[]; interactions: Row[]; tasks: Row[];
+  d: (n: number) => string; ts: (n: number) => string; base: (n: number) => Row; contact: (c: Row) => Row;
+};
+
+function addProcessHistory({ contacts, organizations, onboarding, retention, interactions, tasks, d, ts, base, contact }: Ctx) {
+  // Each new contact: [id, name, organization, org type, role, owner, stage, deal value, extra]
+  const add = (id: string, name: string, org: string, type: string, role: string, owner: string, stage: string, value: string, extra: Row = {}) => {
+    const { won: wasWon, ...rest } = extra; // won = a churned client whose deal had been won
+    const orgId = `org_${id.slice(2)}`;
+    const first = PATHS[id][0][1];
+    organizations.push({ id: orgId, name: org, type, address: "", notes: "", ...base(first) });
+    contacts.push(contact({
+      id, name, company: org, organization_id: orgId, role, owner, stage, contact_type: "prospect", source: "Sample data",
+      email: `${name.split(" ")[0].toLowerCase()}@example.com`, fit_score: "4", next_followup_date: stage === X ? "" : d(3),
+      notes: "", quote_amount: value, deal_value: value, expected_close_date: "", deal_status: [ON, A].includes(stage) || wasWon ? "won" : stage === X ? "lost" : "open",
+      ...base(first), ...rest,
+    }));
+  };
+  add("c_nina", "Nina Castillo", "Brookside Logistics", "Warehouse", "Operations Manager", "Jamie", O, "3500");
+  add("c_marcus", "Marcus Hill", "Fairview Elementary", "School or university", "Facilities Lead", "Ian", Q, "7200", { next_followup_date: d(1) });
+  add("c_brian", "Brian Lee", "Summit Ridge Apartments", "Apartment complex", "Property Manager", "Sam", X, "5200", { lost_reason: "No budget this year" });
+  add("c_carla", "Carla Diaz", "Westlake Church", "Church", "Office Manager", "Jamie", X, "1800", { lost_reason: "No reply after three tries" });
+  add("c_ethan", "Ethan Moore", "Granite Falls Parks", "City or parks department", "Parks Director", "Ian", X, "26000", { lost_reason: "Signed a two-year mowing contract" });
+  add("c_ray", "Ray Alvarez", "Eastside Warehouse Co.", "Warehouse", "Site Manager", "Sam", ON, "4800");
+  add("c_sofia", "Sofia Brandt", "St. Mark's Church", "Church", "Parish Administrator", "Jamie", ON, "2400");
+  add("c_ken", "Ken Okafor", "Brookline School District", "School or university", "Grounds Supervisor", "Ian", ON, "15500");
+  add("c_amara", "Amara Lewis", "Harbor Point Office Campus", "Office park", "Facilities Director", "Ian", ON, "9800");
+  add("c_jo", "Jo Martinez", "Sunset Hills HOA", "HOA", "Board Treasurer", "Jamie", ON, "6100");
+  add("c_hannah", "Hannah Price", "Maple Grove Apartments", "Apartment complex", "Community Manager", "Ian", A, "7400", { renewal_date: d(20) });
+  add("c_owen", "Owen Clarke", "Lakeside Business Park", "Office park", "Property Manager", "Sam", A, "12000", { renewal_date: d(25) });
+  add("c_mei", "Mei Tanaka", "Oak Ridge School District", "School or university", "Facilities Manager", "Ian", A, "21000",
+    { renewal_date: d(345), last_renewed_at: ts(-20), renewal_value: "23500" });
+  // Victor's calculated health is "needs attention" (an overdue invoice task); Jamie set it to healthy by hand.
+  add("c_victor", "Victor Reyes", "Riverbend Golf Club", "Golf course", "Course Manager", "Jamie", A, "14500", { renewal_date: d(75), health_override: "green" });
+  add("c_paul", "Paul Novak", "Greenfield Distribution", "Warehouse", "Operations Director", "Ian", X, "8800", { won: "1", lost_reason: "Budget cut; went back to the landscaper" });
+  add("c_diane", "Diane Foster", "Hillcrest Church", "Church", "Facilities Volunteer", "Sam", X, "3000", { won: "1", lost_reason: "Herd delivery was late twice" });
+  // Existing clients: Luis renews in 50 days; Grace is still onboarding.
+  Object.assign(contacts.find((c) => c.id === "c_luis")!, { renewal_date: d(50) });
+  // Churned clients were updated on the day they churned.
+  for (const id of ["c_brian", "c_carla", "c_ethan", "c_paul", "c_diane"]) {
+    const c = contacts.find((x) => x.id === id)!;
+    c.updated_at = ts(PATHS[id][PATHS[id].length - 1][1]);
+  }
+
+  // Onboarding rows with stage timestamps and checklists.
+  for (const [cid, plan] of Object.entries(OB_PLANS)) {
+    const entered = [plan.h];
+    plan.durs.forEach((n, i) => entered.push(entered[i] + n));
+    const curIdx = Math.min(plan.durs.length, ONBOARDING_STAGES.length - 1);
+    const completed = plan.durs.length >= ONBOARDING_STAGES.length;
+    const row: Row = {
+      id: `ob_${cid.slice(2)}`, contact_id: cid, start_date: d(plan.h), progress_pct: "", health: plan.health || "green",
+      blockers: plan.blockers || "", handoff_notes: plan.handoff || "", success_goals: plan.goals || "",
+      onboarding_stage: ONBOARDING_STAGES[curIdx].key, completed_at: completed ? ts(entered[5]) : "", ...base(plan.h),
+    };
+    ONBOARDING_STAGES.forEach((st, i) => {
+      if (i < entered.length && i <= curIdx) row[enteredCol(st.key)] = ts(entered[i]);
+      const finished = completed || i < curIdx;
+      for (const step of st.steps) {
+        const on = finished || (i === curIdx && plan.done?.includes(step.key));
+        row[step.key] = on ? "TRUE" : "";
+        row[`${step.key}_date`] = on ? d(finished ? Math.max(entered[i], (entered[i + 1] ?? 0) - 1) : -1) : "";
+      }
+    });
+    const all = ONBOARDING_STAGES.flatMap((st) => st.steps);
+    row.progress_pct = String(Math.round((all.filter((st) => row[st.key] === "TRUE").length / all.length) * 100));
+    onboarding.push(row);
+  }
+
+  // Retention rows for everyone who became a client.
+  for (const id of ["c_hannah", "c_owen", "c_mei", "c_victor", "c_paul", "c_diane"]) {
+    const activeDay = PATHS[id].find((p) => p[0] === A)![1];
+    retention.push({ id: `rt_${id.slice(2)}`, contact_id: id, active_since: d(activeDay), seasonal_rebooking: id === "c_mei" ? "TRUE" : "",
+      seasonal_rebooking_date: id === "c_mei" ? d(-20) : "", added_sites: "", added_sites_date: "", referral: "", referral_date: "", notes: "", ...base(activeDay) });
+  }
+
+  // Last real contact for each client (drives calculated health), plus a few touches along the way.
+  const touch = (id: string, cid: string, n: number, type: string, summary: string, by = "Ian") =>
+    interactions.push({ id, contact_id: cid, date: d(n), type, channel: type === "email" ? "gmail" : "other", summary, email_subject: "", email_body: "", logged_by: by, created_at: ts(n) });
+  touch("int_s1", "c_hannah", -5, "call", "Check-in call: happy with the fall grazing", "Ian");
+  touch("int_s2", "c_owen", -50, "email", "Sent the season recap and photos", "Sam");
+  touch("int_s3", "c_mei", -10, "meeting", "Renewal meeting: signed for next year, adding a site", "Ian");
+  touch("int_s4", "c_victor", -12, "call", "Talked about the ravine by the 7th hole", "Jamie");
+  touch("int_s5", "c_ray", -2, "call", "Handoff call with sales", "Sam");
+  touch("int_s6", "c_sofia", -3, "email", "Sent welcome email", "Jamie");
+  touch("int_s7", "c_ken", -5, "meeting", "Walked the north field", "Ian");
+  touch("int_s8", "c_amara", -3, "meeting", "First grazing finished on the berm", "Ian");
+  touch("int_s9", "c_jo", -1, "call", "Success review booked with the board", "Jamie");
+  touch("int_s10", "c_marcus", -12, "interview", "Discovery call: wants a quote for the back field", "Ian");
+  touch("int_s11", "c_nina", -7, "email", "Sent prospect outreach with survey link", "Jamie");
+  touch("int_s12", "c_paul", -45, "call", "Paul said the budget was cut", "Ian");
+  touch("int_s13", "c_diane", -72, "call", "Diane raised the late deliveries again", "Sam");
+
+  const task = (id: string, title: string, due: number, assigned_to: string, contact_id: string) =>
+    tasks.push({ id, title, due_date: d(due), assigned_to, contact_id, done: "", done_at: "", created_by: "Ian", created_at: ts(-8), updated_at: ts(-8), notes: "", priority: "" });
+  task("task_s1", "Send the fall grazing invoice", -4, "Jamie", "c_victor");
+  task("task_s2", "Book the site visit", 1, "Sam", "c_ray");
+  task("task_s3", "Schedule the kickoff call", 2, "Jamie", "c_sofia");
+  task("task_s4", "Send Marcus the quote", 2, "Ian", "c_marcus");
+}
+
+/** stage_history rows: every pipeline move from PATHS, and every onboarding stage entry from the onboarding rows. */
+function stageHistory(contacts: Row[], onboarding: Row[], ts: (n: number) => string): Row[] {
+  const out: Row[] = [];
+  const owner = new Map(contacts.map((c) => [c.id, c.owner || "Ian"]));
+  for (const [cid, path] of Object.entries(PATHS)) {
+    path.forEach(([stage, day], i) => out.push({
+      id: `sh_${cid.slice(2)}_${i}`, contact_id: cid, track: "pipeline", from_stage: i ? path[i - 1][0] : "", to_stage: stage, at: ts(day), by: owner.get(cid) || "Ian",
+    }));
+  }
+  for (const o of onboarding) {
+    let prev = "";
+    for (const st of ONBOARDING_STAGES) {
+      const at = o[enteredCol(st.key)];
+      if (!at) break;
+      out.push({ id: `sh_${o.id}_${st.key}`, contact_id: o.contact_id, track: "onboarding", from_stage: prev, to_stage: st.key, at, by: owner.get(o.contact_id) || "Ian" });
+      prev = st.key;
+    }
+  }
+  return out.sort((a, b) => a.at.localeCompare(b.at));
 }

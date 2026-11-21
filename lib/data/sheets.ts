@@ -13,7 +13,7 @@ import { parseRawSurveyRows } from "./raw-survey";
 // for 30s. Our own writes update or clear the cache, so only edits made directly in the Sheet wait.
 const CACHE_MS = 30_000;
 type Cached = { at: number; values: string[][] };
-const g = globalThis as unknown as { __sheetsCache?: Map<string, Cached>; __sheetsBatch?: Promise<void> | null };
+const g = globalThis as unknown as { __sheetsCache?: Map<string, Cached>; __sheetsBatch?: Promise<void> | null; __sheetsMissing?: Set<string> };
 const cache = (g.__sheetsCache ??= new Map<string, Cached>()); // survives dev hot reloads
 
 function sheetId() {
@@ -29,18 +29,35 @@ function colLetter(index: number): string {
   return s;
 }
 
+// Tabs the app knows about but the Sheet doesn't have yet (added by a newer version, before setup-sheet runs).
+// They read as empty, so the app keeps working until setup-sheet adds them.
+const missing = () => (g.__sheetsMissing ??= new Set<string>());
+
 async function fetchAllTabs(): Promise<void> {
-  const tabs = Object.keys(TABLES);
-  const res = await sheetsClient().spreadsheets.values.batchGet({
-    spreadsheetId: sheetId(),
-    ranges: tabs,
-    valueRenderOption: "FORMATTED_VALUE",
+  const batch = (tabs: string[]) => sheetsClient().spreadsheets.values.batchGet({
+    spreadsheetId: sheetId(), ranges: tabs, valueRenderOption: "FORMATTED_VALUE",
   });
+  let tabs = Object.keys(TABLES).filter((t) => !missing().has(t));
+  let res;
+  try {
+    res = await batch(tabs);
+  } catch (err) {
+    // One missing tab fails the whole batch: find out which tabs exist, then read just those.
+    const meta = await sheetsClient().spreadsheets.get({ spreadsheetId: sheetId(), fields: "sheets.properties.title" });
+    const have = new Set(meta.data.sheets?.map((s) => s.properties?.title) || []);
+    const absent = Object.keys(TABLES).filter((t) => !have.has(t));
+    if (!absent.length) throw err;
+    absent.forEach((t) => missing().add(t));
+    tabs = tabs.filter((t) => have.has(t));
+    res = await batch(tabs);
+  }
   const at = Date.now();
   (res.data.valueRanges || []).forEach((vr, i) => cache.set(tabs[i], { at, values: (vr.values as string[][]) || [] }));
+  missing().forEach((t) => cache.set(t, { at, values: [] }));
 }
 
 async function readTab(tab: string): Promise<string[][]> {
+  if (missing().has(tab)) return [];
   const hit = cache.get(tab);
   if (hit && Date.now() - hit.at < CACHE_MS) return hit.values;
   if (tab in TABLES) {
@@ -78,7 +95,7 @@ function toRows(values: string[][]): { headers: string[]; rows: Row[] } {
 const PREFIX: Record<TableName, string> = {
   contacts: "c", interactions: "int", surveys: "sv", interviews: "iv", research_themes: "th",
   interview_guides: "g", email_templates: "t", onboarding: "ob", retention: "rt", drafts: "d", activity_log: "log",
-  organizations: "org", sites: "site", tasks: "task", transcripts: "tr", notifications: "n", notification_settings: "ns",
+  organizations: "org", sites: "site", tasks: "task", transcripts: "tr", notifications: "n", notification_settings: "ns", stage_history: "sh",
 };
 const prefixFor = (table: TableName) => PREFIX[table];
 
@@ -175,6 +192,7 @@ export async function ensureTabs(): Promise<string[]> {
     });
     created.push(...toAdd);
   }
+  missing().clear();
   // Add any missing header columns (never removes or reorders existing ones).
   cache.clear(); // one fresh batch read covers every tab below
   for (const [table, cols] of Object.entries(TABLES)) {

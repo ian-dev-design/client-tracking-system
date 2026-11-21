@@ -6,7 +6,9 @@ import { loadAll } from "@/lib/crm";
 import { dashboardData } from "@/lib/dashboard";
 import { journeyOfContact, journey } from "@/lib/journey";
 import { formatDate } from "@/lib/util";
-import { onboardingView, people } from "@/lib/views";
+import { onboardingView } from "@/lib/onboarding";
+import { amount } from "@/lib/target";
+import { people } from "@/lib/views";
 import { CopyButton } from "@/components/ProfileActions";
 import { AssignControl, WorkDraft, WorkInterview, WorkOnboarding, WorkQuiet, WorkTask } from "@/components/WorkPanels";
 
@@ -77,7 +79,7 @@ export default async function WorkOnThis({ params }: { params: Promise<{ id: str
           ) : top.kind === "interview" ? (
             <WorkInterview contact={c} testRedirect={testRedirect} nextHref={nextHref} aiEnabled={aiEnabled()} />
           ) : top.kind === "onboarding" && ob ? (
-            <WorkOnboarding item={onboardingView(ob, c)} />
+            <WorkOnboarding item={onboardingView(ob, c, amount(c.deal_value))} />
           ) : top.kind === "quiet" ? (
             <WorkQuiet contact={c} testRedirect={testRedirect} nextHref={nextHref} />
           ) : (
