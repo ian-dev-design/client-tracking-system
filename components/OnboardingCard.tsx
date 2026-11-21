@@ -13,8 +13,8 @@ export type OnboardingView = {
   steps: { key: string; label: string; done: boolean; date: string }[];
 };
 
-// Health: green = forest, yellow = sand, red = coral.
-const HEALTH: Record<string, string> = { green: "text-forest", yellow: "text-sand", red: "text-coral" };
+// Health: green = success, yellow = amber, red = coral.
+const HEALTH: Record<string, string> = { green: "text-success", yellow: "text-amber-ink", red: "text-coral" };
 
 export function OnboardingCard({ item }: { item: OnboardingView }) {
   const router = useRouter();
@@ -25,7 +25,7 @@ export function OnboardingCard({ item }: { item: OnboardingView }) {
     try { await postJson("/api/onboarding", { id: item.id, ...body }); router.refresh(); } finally { setBusy(false); }
   };
   return (
-    <div className="border border-l-[3px] border-line border-l-sand bg-white p-4">
+    <div className="border border-l-[3px] border-line border-l-onboarding bg-white p-4">
       <div className="flex items-start justify-between gap-2">
         <div>
           <Link href={`/contacts/${item.contactId}`} className="text-[15px] font-semibold hover:underline">{item.name}</Link>
@@ -41,7 +41,7 @@ export function OnboardingCard({ item }: { item: OnboardingView }) {
       </div>
       <div className="mt-3 flex items-center gap-2">
         <div className="h-1 flex-1 bg-wash">
-          <div className="h-full bg-sand" style={{ width: `${item.progress}%` }} />
+          <div className="h-full bg-onboarding" style={{ width: `${item.progress}%` }} />
         </div>
         <span className="text-xs font-medium text-muted">{item.progress}%</span>
       </div>

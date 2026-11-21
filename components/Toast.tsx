@@ -23,7 +23,7 @@ export function Toaster() {
     <div aria-live="polite" className="pointer-events-none fixed inset-x-0 bottom-6 z-[60] flex justify-center px-4">
       {msg && (
         <div key={msg.id} className="flex items-center gap-2 bg-ink px-4 py-2.5 text-sm text-paper">
-          <span className="text-sage" aria-hidden>✓</span>{msg.text}
+          <span className="text-research" aria-hidden>✓</span>{msg.text}
         </div>
       )}
     </div>

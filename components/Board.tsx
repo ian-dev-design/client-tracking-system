@@ -20,7 +20,7 @@ export type BoardCard = {
 
 type Tag = { label: string; cls: string };
 const TAG = {
-  alert: "bg-coral/10 text-coral", ready: "bg-forest/10 text-forest", plain: "bg-wash text-muted",
+  alert: "bg-coral/10 text-coral", ready: "bg-success/10 text-outreach-ink", money: "bg-success/10 text-outreach-ink", plain: "bg-wash text-muted",
 };
 
 // What an empty column says, with a next step where there is one.
@@ -62,7 +62,7 @@ function Card({ card, accent, selected, onSelect, canOnboard, testRedirect }: {
   const tags: Tag[] = [];
   if (card.overdue) tags.push({ label: "Overdue", cls: TAG.alert });
   if (card.ready) tags.push({ label: "Ready for interview", cls: TAG.ready });
-  if (card.value) tags.push({ label: moneyShort(card.value), cls: TAG.plain });
+  if (card.value) tags.push({ label: moneyShort(card.value), cls: TAG.money });
   if (card.fit) tags.push({ label: `Fit ${card.fit}/5`, cls: TAG.plain });
   if (card.hasDraft) tags.push({ label: "Draft ready", cls: TAG.plain });
 
@@ -96,13 +96,13 @@ const CHEVRON = (first: boolean) =>
   `polygon(0 0, calc(100% - 10px) 0, 100% 50%, calc(100% - 10px) 100%, 0 100%${first ? "" : ", 10px 50%"})`;
 
 function Column({ stage, index, count, value, shade, children }: {
-  stage: string; index: number; count: number; value: number; shade: { bg: string; fg: string }; children: React.ReactNode;
+  stage: string; index: number; count: number; value: number; shade: { bg: string; fg: string; edge: string }; children: React.ReactNode;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: stage });
   return (
     <div ref={setNodeRef} className={`flex shrink-0 flex-col ${count ? "w-64 min-w-60 flex-1" : "w-44 min-w-40 flex-[0.6]"}`}>
       <div className={`mb-3 flex h-10 items-center justify-between gap-2 pr-5 ${index ? "pl-5" : "pl-3"}`}
-        style={{ background: shade.bg, color: shade.fg, clipPath: CHEVRON(index === 0) }}>
+        style={{ background: shade.bg, color: shade.fg, boxShadow: `inset 0 -2px 0 ${shade.edge}`, clipPath: CHEVRON(index === 0) }}>
         <span className="truncate text-[11px] font-semibold uppercase tracking-[0.08em]">{stage}</span>
         <span className="shrink-0 text-xs tabular-nums">
           {value > 0 && <span className="mr-2 opacity-80">{moneyShort(value)}</span>}

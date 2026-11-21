@@ -47,10 +47,10 @@ export default async function InterviewLibrary({ searchParams }: { searchParams:
                   <td className="whitespace-nowrap">{formatDate(iv.date)}</td>
                   <td className="min-w-[16rem] max-w-md">
                     <p className="line-clamp-2 text-muted">{iv.summary || "No summary yet."}</p>
-                    {iv.extraction_status === "pending" && <span className="chip mt-1 bg-sand/20 text-ink">Findings pending</span>}
+                    {iv.extraction_status === "pending" && <span className="chip mt-1 bg-amber/15 text-amber-ink">Findings pending</span>}
                   </td>
                   <td><div className="flex max-w-[14rem] flex-wrap gap-1">{splitList(iv.themes).map((t) => (
-                    <Link key={t} href={`/research/library?theme=${encodeURIComponent(t)}`} className="chip hover:bg-line">{t}</Link>
+                    <Link key={t} href={`/research/library?theme=${encodeURIComponent(t)}`} className="chip bg-research/12 text-research-ink hover:bg-research/20">{t}</Link>
                   ))}</div></td>
                   <td className="whitespace-nowrap text-muted">{iv.purpose.replace("_", " ")}</td>
                 </tr>

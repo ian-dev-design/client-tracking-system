@@ -3,9 +3,7 @@ import { loadAll } from "@/lib/crm";
 import { dashboardData } from "@/lib/dashboard";
 import { JOURNEY, journey } from "@/lib/journey";
 import { moneyShort } from "@/lib/target";
-import { actionFor, readyForInterview } from "@/lib/views";
 import { Donut, StackedBar } from "@/components/charts";
-import { FollowupCard } from "@/components/FollowupCard";
 import { SyncNowButton } from "@/components/SurveySync";
 import { SectionHead } from "@/components/ui";
 
@@ -24,7 +22,7 @@ export default async function Dashboard() {
   const data = await loadAll();
   const d = dashboardData(data);
   const todayLabel = new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" });
-  const attention = d.needsAttention.slice(0, 6);
+  const attention = d.needsAttention.slice(0, 5);
   const onboardingHealth = !d.onboardingCount ? "" : [
     d.health.red && `${d.health.red} at risk`,
     d.health.yellow && `${d.health.yellow} needs attention`,
@@ -39,28 +37,31 @@ export default async function Dashboard() {
         <SyncNowButton />
       </div>
 
-      {/* 1. Needs attention: whole row opens the profile; one next step per person, most urgent first */}
+      {/* 1. Needs attention: a summary only. Each row opens its "Work on this" page; no actions here. */}
       <section>
-        <SectionHead title={`Needs attention (${d.needsAttention.length})`} href="/tasks" linkText="My tasks →" />
+        <SectionHead title={`Needs attention (${d.needsAttention.length})`} href="/tasks" linkText="View all →" />
         {attention.length ? (
-          <div className="grid gap-2 lg:grid-cols-2">
+          <ul className="divide-y divide-line border-y border-line bg-white">
             {attention.map(({ c, stage, reasons }) => {
               const top = reasons[0];
+              const late = top.tone === "critical" || top.tone === "alert";
               return (
-                <FollowupCard key={c.id} contact={c} company={c.company}
-                  reason={top.detail + (reasons.length > 1 ? ` · +${reasons.length - 1} more` : "")}
-                  overdue={top.tone === "critical" || top.tone === "alert"}
-                  accent={stage ? journey(stage).border : "border-l-line"}
-                  action={actionFor(c, readyForInterview(c, data.interviews))} testRedirect={process.env.EMAIL_TEST_REDIRECT}
-                  urgency={<span key="dot" className={`h-2.5 w-2.5 shrink-0 rounded-full bg-current ${URGENCY[top.tone]}`} role="img"
-                    aria-label={URGENCY_LABEL[top.tone]} title={URGENCY_LABEL[top.tone]} />} />
+                <li key={c.id}>
+                  <Link href={`/work/${c.id}`}
+                    className={`group flex items-center gap-3 border-l-[3px] py-2.5 pr-3 pl-3 transition-colors hover:bg-surface ${stage ? journey(stage).border : "border-l-line"}`}>
+                    <span className={`h-2 w-2 shrink-0 rounded-full bg-current ${URGENCY[top.tone]}`} role="img" aria-label={URGENCY_LABEL[top.tone]} title={URGENCY_LABEL[top.tone]} />
+                    <span className="min-w-0 flex-1 truncate text-sm">
+                      <span className="font-semibold text-ink">{c.name}</span>
+                      <span className={late ? "text-coral" : top.tone === "due" ? "text-amber-ink" : "text-muted"}> · {top.short}</span>
+                      {reasons.length > 1 && <span className="text-faint"> +{reasons.length - 1}</span>}
+                    </span>
+                    <span className="text-faint transition-colors group-hover:text-ink" aria-hidden>→</span>
+                  </Link>
+                </li>
               );
             })}
-          </div>
+          </ul>
         ) : <p className="muted">Nothing needs attention right now. <Link href="/contacts/new" className="link">+ Add a contact</Link></p>}
-        {d.needsAttention.length > attention.length && (
-          <Link href="/tasks" className="link mt-3 inline-block text-sm">{d.needsAttention.length - attention.length} more →</Link>
-        )}
       </section>
 
       <div className="mt-12 grid gap-x-14 gap-y-12 lg:grid-cols-2">

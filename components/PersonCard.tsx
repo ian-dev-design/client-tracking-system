@@ -8,9 +8,9 @@ import Link from "next/link";
 export type Tag = { label: string; tone?: "ready" | "alert" | "due" | "plain" };
 
 const TONE = {
-  ready: "bg-forest/10 text-forest",
+  ready: "bg-success/10 text-outreach-ink",
   alert: "bg-coral/10 text-coral", // overdue / at risk only
-  due: "bg-sand/20 text-ink", // due today, quiet, blocked: worth a look, not late
+  due: "bg-amber/15 text-amber-ink", // due today, quiet, blocked: worth a look, not late
   plain: "bg-wash text-muted",
 };
 

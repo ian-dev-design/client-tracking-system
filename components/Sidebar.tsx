@@ -26,7 +26,7 @@ export function Sidebar({ counts, userName, demo, notifications }: { counts: Cou
   );
 
   return (
-    <aside className="sticky top-0 z-40 flex w-full flex-col border-b border-line bg-paper px-3 py-3 md:h-screen md:w-64 md:shrink-0 md:overflow-y-auto md:border-b-0 md:border-r md:py-6">
+    <aside className="sticky top-0 z-40 flex w-full flex-col border-b border-line bg-side px-3 py-3 md:h-screen md:w-64 md:shrink-0 md:overflow-y-auto md:border-b-0 md:border-r md:py-6">
       <div className="flex items-center justify-between">
         <Link href="/" className="min-w-0 pl-3"><Brand /></Link>
         <div className="ml-auto md:ml-0"><Bell items={notifications} /></div>

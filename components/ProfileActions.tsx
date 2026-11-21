@@ -88,7 +88,7 @@ export function ProfileActions({ contact, primary, testRedirect, aiEnabled }: {
 /** Copy a value (e.g. an email) with a confirmation. */
 export function CopyButton({ value, label = "Copy" }: { value: string; label?: string }) {
   return (
-    <button type="button" className="text-xs font-medium text-forest hover:underline"
+    <button type="button" className="text-xs font-medium text-info hover:underline"
       onClick={() => navigator.clipboard.writeText(value).then(() => toast("Copied"), () => toast("Couldn't copy"))}>
       {label}
     </button>

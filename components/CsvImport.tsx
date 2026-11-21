@@ -9,7 +9,7 @@ import { Spinner } from "./ui";
 type Check = { row: Record<string, string>; status: "new" | "duplicate" | "invalid"; reason?: string; existingId?: string };
 
 const STATUS = {
-  new: { label: "New", cls: "text-forest" },
+  new: { label: "New", cls: "text-success" },
   duplicate: { label: "Duplicate · skipped", cls: "text-muted" },
   invalid: { label: "Missing name · skipped", cls: "text-coral" },
 };

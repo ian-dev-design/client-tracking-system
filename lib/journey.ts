@@ -14,7 +14,10 @@ export type JourneyStage = {
   hex: string; // chart color
   bg: string; // solid accent (thin bars)
   border: string; // left accent border
-  tint: string; // light background (active item)
+  tint: string; // light background (active item, row / header tints)
+  ink: string; // text color that stays readable on the tint
+  tag: string; // tag / chip: tint background + ink text
+  underline: string; // active tab underline
 };
 
 export const JOURNEY: JourneyStage[] = [
@@ -22,25 +25,29 @@ export const JOURNEY: JourneyStage[] = [
     key: "research", n: 1, label: "Research", href: "/research",
     purpose: "Learn people's problems",
     description: "Survey and interview people to understand their problems. Nobody is being sold to here.",
-    hex: "#9ab39a", bg: "bg-sage", border: "border-l-sage", tint: "bg-sage/15",
+    hex: "#5b8fa8", bg: "bg-research", border: "border-l-research", tint: "bg-research/10",
+    ink: "text-research-ink", tag: "bg-research/12 text-research-ink", underline: "border-research",
   },
   {
     key: "outreach", n: 2, label: "Outreach", href: "/board",
     purpose: "Find & sign customers",
     description: "Move prospects from first contact to qualified: send outreach, collect surveys, run discovery calls.",
-    hex: "#2f5d4a", bg: "bg-pine", border: "border-l-pine", tint: "bg-pine/10",
+    hex: "#2f6b4f", bg: "bg-outreach", border: "border-l-outreach", tint: "bg-outreach/10",
+    ink: "text-outreach-ink", tag: "bg-outreach/12 text-outreach-ink", underline: "border-outreach",
   },
   {
     key: "onboarding", n: 3, label: "Onboarding", href: "/onboarding",
     purpose: "Set new clients up",
     description: "Get each new client through the onboarding checklist, from first step to done.",
-    hex: "#c8a45d", bg: "bg-sand", border: "border-l-sand", tint: "bg-sand/15",
+    hex: "#d69a2d", bg: "bg-onboarding", border: "border-l-onboarding", tint: "bg-onboarding/12",
+    ink: "text-onboarding-ink", tag: "bg-onboarding/15 text-onboarding-ink", underline: "border-onboarding",
   },
   {
     key: "retention", n: 4, label: "Retention", href: "/retention",
     purpose: "Keep customers happy",
     description: "Stay in touch with active customers, track signs they’re sticking around, and catch anyone going quiet.",
-    hex: "#a65e46", bg: "bg-clay", border: "border-l-clay", tint: "bg-clay/10",
+    hex: "#b5593c", bg: "bg-retention", border: "border-l-retention", tint: "bg-retention/10",
+    ink: "text-retention-ink", tag: "bg-retention/12 text-retention-ink", underline: "border-retention",
   },
 ];
 
@@ -68,16 +75,12 @@ function mix(a: string, b: string, t: number): string {
 }
 
 /**
- * n shades of a stage color, light → dark, for a board's column headers (progress reads left to right).
- * Each comes with a text color that stays readable on it.
+ * n tints of a stage color, lighter → deeper, for a board's column headers (progress reads left to right).
+ * Always dark text on top (every tint stays ≥ 8:1 with ink), plus a thin darker bottom edge in the stage color.
  */
-export function stageShades(hex: string, n: number): { bg: string; fg: string }[] {
+export function stageShades(hex: string, n: number): { bg: string; fg: string; edge: string }[] {
   return Array.from({ length: n }, (_, i) => {
-    const t = n === 1 ? 0.5 : i / (n - 1);
-    // light tint of the color → the color → a deeper version of it
-    const bg = t < 0.65 ? mix("#ffffff", hex, 0.22 + (t / 0.65) * 0.78) : mix(hex, "#141414", ((t - 0.65) / 0.35) * 0.35);
-    const [r, g, b] = [1, 3, 5].map((k) => parseInt(bg.slice(k, k + 2), 16) / 255).map((c) => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4));
-    const lum = 0.2126 * r + 0.7152 * g + 0.0722 * b;
-    return { bg, fg: lum > 0.19 ? "#141414" : "#ffffff" }; // 0.19 ≈ where dark and white text have equal contrast
+    const t = n === 1 ? 0.2 : 0.1 + (i / (n - 1)) * 0.25; // 10% → 35% tint
+    return { bg: mix("#ffffff", hex, t), fg: "#1e2a25", edge: hex };
   });
 }

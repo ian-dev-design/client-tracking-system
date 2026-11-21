@@ -21,12 +21,12 @@ export default async function ThemesPage() {
             <span className="ml-auto text-xs text-faint">updated {formatDate(t.last_updated)}</span>
           </div>
           <Link href={`/research/library?theme=${encodeURIComponent(t.theme)}`} title="See these interviews" className="mt-2 block h-1 bg-wash">
-            <div className="h-full bg-sage" style={{ width: `${((Number(t.interview_count) || 0) / max) * 100}%` }} />
+            <div className="h-full bg-research" style={{ width: `${((Number(t.interview_count) || 0) / max) * 100}%` }} />
           </Link>
           {t.description && <p className="mt-2 text-sm text-muted">{t.description}</p>}
           <div className="mt-2 space-y-1.5">
             {splitList(t.example_quotes, "line").slice(0, 3).map((q, j) => (
-              <blockquote key={j} className="border-l-2 border-sage pl-3 text-sm italic text-muted">&ldquo;{q}&rdquo;</blockquote>
+              <blockquote key={j} className="border-l-2 border-research pl-3 text-sm italic text-muted">&ldquo;{q}&rdquo;</blockquote>
             ))}
           </div>
         </div>

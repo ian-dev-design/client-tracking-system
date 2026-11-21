@@ -1,35 +1,52 @@
 @import "tailwindcss";
 
 /*
-  Deep forest palette, Swiss/minimal style.
-  Every color in the app comes from this list — use these names (bg-forest, text-muted, border-line…),
-  not Tailwind's default palette. Stage accents: sage, pine, sand, clay (see lib/journey.ts).
+  Swiss/minimal, warm and readable. Every color in the app comes from this list — use these names
+  (bg-paper, text-muted, border-line, bg-outreach/10…), not Tailwind's default palette.
+  Color carries meaning only: the 4 journey stages, status (overdue / due / ready / info), and the
+  one primary button. Body areas stay neutral. All text colors pass WCAG AA on paper and on 10–35% tints.
 */
 @theme {
   --font-sans: var(--font-geist), "Helvetica Neue", Helvetica, Arial, sans-serif;
 
-  --color-paper: #f5f3ee;   /* page background */
-  --color-surface: #faf9f6; /* subtle panels */
-  --color-wash: #eeebe4;    /* hover / empty tracks */
-  --color-line: #e2dfd6;    /* 1px dividers */
-  --color-ink: #141414;     /* main text */
-  --color-muted: #5c625d;   /* secondary text */
-  --color-faint: #8f948e;   /* hints, axis labels */
-  --color-forest: #1f3a2e;  /* primary: buttons, links, active, "ready" */
-  --color-coral: #e8735a;   /* overdue / at risk */
+  /* Neutrals */
+  --color-paper: #f7f5f0;   /* page background: soft warm off-white */
+  --color-side: #f0ede6;    /* sidebar: a slightly different soft tone */
+  --color-surface: #fbfaf7; /* hover on white */
+  --color-wash: #efece5;    /* empty tracks, quiet chips */
+  --color-line: #e3dfd6;    /* 1px dividers */
+  --color-ink: #1e2a25;     /* main text: soft near-black */
+  --color-muted: #5e6a64;   /* secondary text */
+  --color-faint: #78817b;   /* hints, timestamps */
+  --color-forest: #1f3a2e;  /* ONLY the primary button and active states */
+
+  /* Journey stages: solid color for bars/dots/charts, -ink for text on their tints */
+  --color-research: #5b8fa8;   --color-research-ink: #2f5f75;   /* dusty blue */
+  --color-outreach: #2f6b4f;   --color-outreach-ink: #24573f;   /* green */
+  --color-onboarding: #d69a2d; --color-onboarding-ink: #845a12; /* amber */
+  --color-retention: #b5593c;  --color-retention-ink: #8e4128;  /* terracotta */
+
+  /* Status */
+  --color-coral: #b84a2c;   /* overdue / at risk (readable as text) */
+  --color-amber: #d69a2d;   --color-amber-ink: #845a12; /* due today / worth a look */
+  --color-success: #2f6b4f; /* ready / done */
+  --color-info: #2f6e8f;    /* links, info, scheduled */
   --color-urgent: #dc2626;  /* urgency dot: overdue (standard red) */
-  --color-warn: #f2b01e;    /* urgency dot: due today / worth a look (standard yellow) */
+  --color-warn: #f2b01e;    /* urgency dot: due today (standard yellow) */
   --color-warn-soft: #f6d88a; /* urgency dot: ready, no rush */
 
-  --color-sage: #9ab39a;    /* Research */
-  --color-pine: #2f5d4a;    /* Outreach */
-  --color-sand: #c8a45d;    /* Onboarding */
-  --color-clay: #a65e46;    /* Retention */
+  /* Timeline activity types (deliberately not the stage colors) */
+  --color-tl-email: #7468a3;     /* violet */
+  --color-tl-call: #3b8c87;      /* teal: calls & meetings */
+  --color-tl-survey: #b4708f;    /* rose */
+  --color-tl-interview: #6f7f33; /* olive */
+  --color-tl-stage: #55627a;     /* slate: stage changes */
+  --color-tl-note: #a3aaa5;      /* gray */
 
   --radius-xs: 2px;
   --radius-sm: 3px;
 
-  /* Glows use the element's text color (set text-urgent / text-forest alongside bg-current). */
+  /* Glows use the element's text color (set text-urgent / text-warn alongside bg-current). */
   --animate-glow: glow 1.8s ease-in-out infinite;        /* overdue dots */
   --animate-glow-fast: glow 1s ease-in-out infinite;     /* a week+ overdue */
   --animate-breathe: breathe 4s ease-in-out infinite;    /* the brand dot, barely there */
@@ -50,7 +67,8 @@ body {
 
 @layer components {
   .card { @apply rounded-sm border border-line bg-white; }
-  .btn { @apply inline-flex items-center justify-center gap-1.5 rounded-xs border border-forest/30 bg-transparent px-3 py-1.5 text-sm font-medium text-forest transition-colors hover:border-forest hover:bg-forest/5 disabled:opacity-40 cursor-pointer; }
+  /* Secondary buttons are neutral; dark forest is reserved for .btn-primary (one per page). */
+  .btn { @apply inline-flex items-center justify-center gap-1.5 rounded-xs border border-line bg-white px-3 py-1.5 text-sm font-medium text-ink transition-colors hover:border-muted/50 hover:bg-surface disabled:opacity-40 cursor-pointer; }
   .btn-sm { @apply px-2 py-1 text-xs; }
   .btn-primary { @apply border-forest bg-forest text-paper hover:bg-forest/90 hover:text-paper; }
   .btn-danger { @apply border-coral/50 text-coral hover:border-coral hover:bg-coral/5; }
@@ -60,7 +78,7 @@ body {
   .h1 { @apply text-[30px] leading-tight font-medium tracking-[-0.02em] text-ink; }
   .h2 { @apply text-[11px] font-semibold uppercase tracking-[0.12em] text-muted; }
   .muted { @apply text-sm text-muted; }
-  .link { @apply text-forest underline decoration-forest/30 underline-offset-2 hover:decoration-forest; }
+  .link { @apply text-info underline decoration-info/30 underline-offset-2 hover:decoration-info; }
   .chip { @apply inline-flex items-center rounded-xs bg-wash px-1.5 py-0.5 text-xs font-medium text-ink; }
   .table { @apply w-full text-left text-sm; }
   /* Tables live in .table-wrap, which scrolls itself so the header row can stay put. */

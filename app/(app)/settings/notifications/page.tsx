@@ -18,7 +18,7 @@ export default async function NotificationSettingsPage() {
     <>
       <PageHeader title="Notifications" subtitle="What the CRM emails you about. You'll always see everything in the bell." />
       {testRedirect && (
-        <div className="mb-8 border-l-[3px] border-sand bg-sand/10 px-4 py-2.5 text-sm">
+        <div className="mb-8 border-l-[3px] border-amber bg-amber/10 px-4 py-2.5 text-sm">
           Test mode: every notification email goes to <b>{testRedirect}</b>.
         </div>
       )}

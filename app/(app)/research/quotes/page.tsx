@@ -29,7 +29,7 @@ export default async function QuotesWall({ searchParams }: { searchParams: Promi
                 <Link href={`/contacts/${x.iv.contact_id}`} className="font-medium text-ink hover:underline">{x.person?.name}</Link>
                 {x.person?.role && ` · ${x.person.role}`} · {formatDate(x.iv.date)}
               </figcaption>
-              <div className="mt-2 flex flex-wrap gap-1">{x.themes.map((t) => <span key={t} className="chip">{t}</span>)}</div>
+              <div className="mt-2 flex flex-wrap gap-1">{x.themes.map((t) => <span key={t} className="chip bg-research/12 text-research-ink">{t}</span>)}</div>
             </figure>
           ))}
         </div>

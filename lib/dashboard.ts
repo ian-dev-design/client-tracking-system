@@ -12,7 +12,17 @@ import type { Slice } from "@/components/charts";
 
 const HEALTH = [{ key: "green" }, { key: "yellow" }, { key: "red" }];
 
-export type Attention = { c: Row; stage: JourneyKey | null; reasons: { label: string; detail: string; tone: "critical" | "alert" | "ready" | "due" }[] };
+/** What kind of work a reason needs; decides what the "Work on this" page shows. */
+export type WorkKind = "followup" | "task" | "interview" | "onboarding" | "quiet";
+export type Reason = {
+  label: string; // two words
+  short: string; // one short line for the dashboard row, e.g. "Follow-up overdue · 2 days"
+  detail: string; // the full reason
+  tone: "critical" | "alert" | "ready" | "due";
+  kind: WorkKind;
+  taskId?: string;
+};
+export type Attention = { c: Row; stage: JourneyKey | null; reasons: Reason[] };
 
 /** One sentence per interaction for the activity feed, e.g. "Ian sent outreach to Jordan Reyes". */
 function describe(i: Row, name: string): string {
@@ -43,8 +53,8 @@ export function dashboardData(data: AllData) {
   const respondedCount = reached.filter((c) => responded.has(c.id)).length;
 
   // Pipeline value: open deals by stage, plus what's been won.
-  // Shades of the primary forest green, light → dark as deals progress (never the journey stage colors).
-  const SHADES = [22, 40, 58, 78, 100].map((p) => `color-mix(in srgb, #1f3a2e ${p}%, #f5f3ee)`);
+  // Deals live in Outreach, so the bar uses tints of the Outreach green, light → deep as deals progress.
+  const SHADES = [25, 42, 60, 80, 100].map((p) => `color-mix(in srgb, #2f6b4f ${p}%, #ffffff)`);
   const openDeals = contacts.filter((c) => isProspect(c) && c.deal_status !== "won" && c.deal_status !== "lost");
   const pipeline: Slice[] = ["Lead", "Outreach", "Survey Completed", "Client Interview", "Qualified"].map((stage, i) => ({
     label: stage, color: SHADES[i], href: `/contacts?stage=${encodeURIComponent(stage)}`,
@@ -59,26 +69,33 @@ export function dashboardData(data: AllData) {
 
   // Needs attention: one card per person, listing every reason
   const attention = new Map<string, Attention>();
-  // label: two words for the dashboard row; detail: the full reason, shown on hover.
-  const flag = (c: Row | undefined, label: string, detail: string, tone: Attention["reasons"][number]["tone"] = "alert") => {
+  const flag = (c: Row | undefined, r: Reason) => {
     if (!c) return;
     const a = attention.get(c.id) || { c, stage: journeyOfContact(c), reasons: [] };
-    a.reasons.push({ label, detail, tone });
+    a.reasons.push(r);
     attention.set(c.id, a);
   };
+  const days = (n: number | null) => `${n} day${n === 1 ? "" : "s"}`;
   contacts.filter(isOverdue).forEach((c) => {
     const d = daysSince(c.next_followup_date);
-    flag(c, "Follow up", `Follow-up overdue by ${d} day${d === 1 ? "" : "s"}`, (d ?? 0) >= 7 ? "critical" : "alert");
+    flag(c, { label: "Follow up", short: `Follow-up overdue · ${days(d)}`, detail: `Follow-up overdue by ${days(d)}`,
+      tone: (d ?? 0) >= 7 ? "critical" : "alert", kind: "followup" });
   });
-  contacts.filter(isDueToday).forEach((c) => flag(c, "Follow up", "Follow-up due today", "due"));
-  contacts.filter((c) => readyForInterview(c, interviews)).forEach((c) => flag(c, "Book interview", "Ready for interview", "ready"));
-  tasks.filter((t) => !isTrue(t.done) && t.due_date && t.due_date < today())
-    .forEach((t) => flag(byId.get(t.contact_id), "Overdue task", `Task overdue: ${t.title}`,
-      (daysSince(t.due_date) ?? 0) >= 7 ? "critical" : "alert"));
-  onboardingRows.filter((o) => o.blockers).forEach((o) => flag(byId.get(o.contact_id), "Unblock setup", `Blocked: ${o.blockers}`, "due"));
+  contacts.filter(isDueToday).forEach((c) => flag(c, { label: "Follow up", short: "Follow-up due today", detail: "Follow-up due today", tone: "due", kind: "followup" }));
+  contacts.filter((c) => readyForInterview(c, interviews)).forEach((c) =>
+    flag(c, { label: "Book interview", short: "Ready for interview", detail: "Ready for interview", tone: "ready", kind: "interview" }));
+  tasks.filter((t) => !isTrue(t.done) && t.due_date && t.due_date <= today()).forEach((t) => {
+    const d = daysSince(t.due_date) ?? 0;
+    flag(byId.get(t.contact_id), d > 0
+      ? { label: "Overdue task", short: `Task overdue · ${days(d)}`, detail: `Task overdue: ${t.title}`, tone: d >= 7 ? "critical" : "alert", kind: "task", taskId: t.id }
+      : { label: "Task due", short: "Task due today", detail: `Task due today: ${t.title}`, tone: "due", kind: "task", taskId: t.id });
+  });
+  onboardingRows.filter((o) => o.blockers).forEach((o) =>
+    flag(byId.get(o.contact_id), { label: "Unblock setup", short: "Onboarding blocked", detail: `Blocked: ${o.blockers}`, tone: "due", kind: "onboarding" }));
   contacts.filter((c) => c.stage === "Active / Retention").forEach((c) => {
     const d = daysSince(lastTouch(c.id, interactions));
-    if (d === null || d >= 30) flag(c, "Check in", d === null ? "Never contacted" : `Quiet for ${d} days`, "due");
+    if (d === null || d >= 30) flag(c, { label: "Check in", short: d === null ? "Never contacted" : `Quiet · ${days(d)}`,
+      detail: d === null ? "Never contacted" : `Quiet for ${days(d)}`, tone: "due", kind: "quiet" });
   });
   // Most urgent first: a week+ overdue (critical) → overdue (alert) → due → ready.
   const rank = { critical: 0, alert: 1, due: 2, ready: 3 } as const;

@@ -56,7 +56,7 @@ export function NotificationSettingsForm({ initial }: { initial: S }) {
         </div>
       </div>
       <div className="mt-4 flex items-center justify-end gap-3">
-        {msg && <span className={`text-sm ${msg === "Saved" ? "text-forest" : "text-coral"}`}>{msg}</span>}
+        {msg && <span className={`text-sm ${msg === "Saved" ? "text-success" : "text-coral"}`}>{msg}</span>}
         <button className="btn btn-primary" disabled={busy} onClick={save}>{busy && <Spinner />}Save</button>
       </div>
     </div>

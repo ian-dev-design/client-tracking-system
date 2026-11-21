@@ -28,7 +28,7 @@ export default async function ContactsPage({ searchParams }: { searchParams: Pro
       </PageHeader>
       {shortcut && (
         <div className="mb-3 flex items-center gap-2 text-sm">
-          <span className="chip bg-forest/10 text-forest">Showing: {shortcut}</span>
+          <span className="chip bg-success/10 text-outreach-ink">Showing: {shortcut}</span>
           <Link href="/contacts" className="text-xs link">Show everyone</Link>
         </div>
       )}
@@ -56,7 +56,7 @@ export default async function ContactsPage({ searchParams }: { searchParams: Pro
                   <td className={`whitespace-nowrap ${isOverdue(c) ? "font-semibold text-coral" : "text-ink"}`}>{formatDate(c.next_followup_date)}</td>
                   <td className="text-right tabular-nums">
                     {c.deal_value ? money(c.deal_value) : <span className="text-faint">—</span>}
-                    {c.deal_status === "won" && <div className="text-[11px] font-semibold uppercase tracking-wide text-forest">Won</div>}
+                    {c.deal_status === "won" && <div className="text-[11px] font-semibold uppercase tracking-wide text-success">Won</div>}
                     {c.deal_status === "lost" && <div className="text-[11px] font-semibold uppercase tracking-wide text-coral">Lost</div>}
                   </td>
                   {manyOwners && <td className="text-muted">{c.owner}</td>}

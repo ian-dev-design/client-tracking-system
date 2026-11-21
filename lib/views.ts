@@ -1,7 +1,8 @@
 // Small read-only helpers the pages use to compute what to show.
 
 import type { Row } from "@/lib/data";
-import { isClosed, isProspect, isResearch } from "@/lib/crm";
+import { isClosed, isProspect, isResearch, onboardingProgress } from "@/lib/crm";
+import { ONBOARDING_STEPS } from "@/lib/data";
 import { daysSince, isTrue, today } from "@/lib/util";
 import { isPerson, team } from "@/lib/team";
 
@@ -98,4 +99,15 @@ export function actionFor(c: Row, ready: boolean): NextAction {
   if (c.stage === "Active / Retention") return "checkin";
   if (["Client Interview", "Qualified"].includes(c.stage) || (!isProspect(c) && ["Interview Scheduled", "Interviewed"].includes(c.research_status))) return "log";
   return "draft";
+}
+
+/** What an onboarding card needs, from an onboarding row and its contact. */
+export function onboardingView(o: Row, c: Row | undefined) {
+  return {
+    id: o.id, contactId: o.contact_id, name: c?.name || "Unknown", company: c?.company || "",
+    owner: c?.owner || "", health: o.health || "green", blockers: o.blockers || "",
+    daysSinceStart: daysSince(o.start_date), progress: onboardingProgress(o),
+    steps: ONBOARDING_STEPS.map((s) => ({ key: s.key, label: s.label, done: isTrue(o[s.key]), date: o[`${s.key}_date`] || "" })),
+    stage: c?.stage,
+  };
 }

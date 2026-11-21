@@ -42,7 +42,7 @@ export function RetentionCard({ item, testRedirect }: { item: RetentionView; tes
   };
   const c = item.contact;
   return (
-    <div className="border border-l-[3px] border-line border-l-clay bg-white p-4">
+    <div className="border border-l-[3px] border-line border-l-retention bg-white p-4">
       <Link href={`/contacts/${c.id}`} className="text-[15px] font-semibold hover:underline">{c.name}</Link>
       <div className="text-xs text-muted">{c.company}{c.owner ? ` · Owner: ${c.owner}` : ""}</div>
 

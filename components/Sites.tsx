@@ -4,8 +4,13 @@ import { SITE_CONFIG } from "@/lib/target";
 import { formatDate } from "@/lib/util";
 import { SiteButton } from "./SiteForm";
 
-// Status shades of forest (darker = further along). Stage colors are kept for the journey only.
-const STATUS_BAR: Record<string, string> = { Completed: "bg-forest", "In progress": "bg-forest/60", Scheduled: "bg-forest/30" };
+// Site status as colored text with a small dot: done = green, underway = amber, booked = blue, anything else gray.
+const STATUS: Record<string, { dot: string; text: string }> = {
+  Completed: { dot: "bg-success", text: "text-outreach-ink" },
+  "In progress": { dot: "bg-amber", text: "text-amber-ink" },
+  Scheduled: { dot: "bg-info", text: "text-info" },
+};
+const GRAY = { dot: "bg-faint", text: "text-muted" };
 
 export function SitesList({ sites, organizationId }: { sites: Record<string, string>[]; organizationId: string }) {
   return (
@@ -20,7 +25,7 @@ export function SitesList({ sites, organizationId }: { sites: Record<string, str
                   {s.size && <span className="text-xs text-muted">{s.size} {SITE_CONFIG.sizeUnit}</span>}
                 </div>
                 <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted">
-                  <span className="inline-flex items-center gap-1.5 text-ink"><span className={`h-3 w-[3px] ${STATUS_BAR[s.status] || "bg-line"}`} />{s.status || "—"}</span>
+                  <span className={`inline-flex items-center gap-1.5 font-medium ${(STATUS[s.status] || GRAY).text}`}><span className={`h-1.5 w-1.5 rounded-full ${(STATUS[s.status] || GRAY).dot}`} aria-hidden />{s.status || "—"}</span>
                   {(s.service_start || s.service_end) && (
                     <span>{SITE_CONFIG.serviceLabel}: {formatDate(s.service_start)} – {formatDate(s.service_end)}</span>
                   )}

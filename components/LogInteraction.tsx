@@ -16,9 +16,20 @@ export function LogInteractionModal({ contact, onClose }: {
   contact: Record<string, string>; // a contact row
   onClose: () => void;
 }) {
+  return (
+    <Modal title={`Log interaction · ${contact.name}`} onClose={onClose}>
+      <LogInteractionForm contact={contact} onDone={onClose} onCancel={onClose} />
+    </Modal>
+  );
+}
+
+/** The log form on its own (popup above, or inline on the "Work on this" page). */
+export function LogInteractionForm({ contact, onDone, onCancel, defaultType = "call" }: {
+  contact: Record<string, string>; onDone: () => void; onCancel?: () => void; defaultType?: string;
+}) {
   const router = useRouter();
   const [form, setForm] = useState({
-    type: "call", channel: "other", summary: "", date: todayStr(), stage: "", research_status: "", next_followup_date: "",
+    type: defaultType, channel: "other", summary: "", date: todayStr(), stage: "", research_status: "", next_followup_date: "",
   });
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -27,7 +38,6 @@ export function LogInteractionModal({ contact, onClose }: {
   const research = contact.contact_type !== "prospect";
 
   return (
-    <Modal title={`Log interaction · ${contact.name}`} onClose={onClose}>
       <form
         className="space-y-4"
         onSubmit={async (e) => {
@@ -37,7 +47,7 @@ export function LogInteractionModal({ contact, onClose }: {
             await postJson("/api/interactions", { contact_id: contact.id, ...form });
             toast("Interaction logged");
             router.refresh();
-            onClose();
+            onDone();
           } catch (err) { setError((err as Error).message); } finally { setBusy(false); }
         }}
       >
@@ -71,10 +81,9 @@ export function LogInteractionModal({ contact, onClose }: {
         </div>
         {error && <p className="text-sm text-coral">{error}</p>}
         <div className="flex justify-end gap-2 border-t border-line pt-4">
-          <button type="button" className="btn" onClick={onClose}>Cancel</button>
+          {onCancel && <button type="button" className="btn" onClick={onCancel}>Cancel</button>}
           <button className="btn btn-primary" disabled={busy}>{busy && <Spinner />}{busy ? "Saving…" : "Save"}</button>
         </div>
       </form>
-    </Modal>
   );
 }

@@ -17,10 +17,12 @@ export function Brand({ className = "" }: { className?: string }) {
 export function StageBadge({ value, track }: { value: string; track?: JourneyKey }) {
   if (!value) return null;
   const key = track || journeyOf(value);
-  const bar = value === "Churned / Lost" ? "bg-coral" : key ? journey(key).bg : "bg-line";
+  const j = key ? journey(key) : null;
+  const tag = value === "Churned / Lost" ? "bg-coral/10 text-coral" : j ? j.tag : "bg-wash text-muted";
+  const bar = value === "Churned / Lost" ? "bg-coral" : j ? j.bg : "bg-line";
   return (
-    <span className="inline-flex items-center gap-1.5 text-xs font-medium text-ink">
-      <span className={`h-3 w-[3px] ${bar}`} aria-hidden />{value}
+    <span className={`inline-flex items-center gap-1.5 rounded-xs py-0.5 pr-1.5 text-xs font-medium ${tag}`}>
+      <span className={`h-full min-h-3 w-[3px] self-stretch ${bar}`} aria-hidden />{value}
     </span>
   );
 }
@@ -30,8 +32,8 @@ export function TypeBadge({ value }: { value: string }) {
   return <span className="text-xs text-muted">{TYPE_LABEL[value] || value}</span>;
 }
 
-// Health: green = forest, yellow = sand, red = coral.
-export const HEALTH_COLOR: Record<string, string> = { green: "bg-forest", yellow: "bg-sand", red: "bg-coral" };
+// Health: green = success, yellow = amber, red = coral.
+export const HEALTH_COLOR: Record<string, string> = { green: "bg-success", yellow: "bg-amber", red: "bg-coral" };
 export function HealthDot({ value }: { value: string }) {
   return <span title={`Health: ${value || "green"}`} className={`inline-block h-2 w-2 rounded-full ${HEALTH_COLOR[value] || HEALTH_COLOR.green}`} />;
 }
@@ -66,7 +68,7 @@ export function SectionHead({ title, href, linkText = "Open →" }: { title: str
   return (
     <div className="mb-4 flex items-baseline justify-between gap-3 border-b border-line pb-2">
       <h2 className="h2">{title}</h2>
-      {href && <Link href={href} className="text-xs font-medium text-forest hover:underline">{linkText}</Link>}
+      {href && <Link href={href} className="text-xs font-medium text-info hover:underline">{linkText}</Link>}
     </div>
   );
 }
@@ -77,7 +79,7 @@ export function Stars({ value }: { value: string }) {
   return <span className="text-xs tabular-nums text-muted" title={`Fit ${n}/5`}>Fit {n}/5</span>;
 }
 
-export function ProgressBar({ pct, color = "bg-sand" }: { pct: number; color?: string }) {
+export function ProgressBar({ pct, color = "bg-amber" }: { pct: number; color?: string }) {
   return (
     <div className="h-1 w-full bg-wash">
       <div className={`h-full ${color}`} style={{ width: `${Math.max(0, Math.min(100, pct))}%` }} />

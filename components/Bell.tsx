@@ -63,7 +63,7 @@ export function Bell({ items = [] }: { items?: BellItem[] }) {
           <div className="flex items-center justify-between border-b border-line px-4 py-2.5">
             <span className="text-sm font-semibold text-ink">Notifications{unread ? ` · ${unread} new` : ""}</span>
             <button type="button" onClick={markAll} disabled={!unread}
-              className="text-xs font-medium text-forest hover:underline disabled:text-faint disabled:no-underline">Mark all read</button>
+              className="text-xs font-medium text-info hover:underline disabled:text-faint disabled:no-underline">Mark all read</button>
           </div>
           {list.length ? (
             <ul className="max-h-[60vh] divide-y divide-line overflow-y-auto">
