@@ -1,6 +1,6 @@
 import raw from "@/config.json";
 
-// Non-secret IDs live in config.json. Env vars can override them (useful on Vercel).
+// Non-secret IDs live in config.json. Env vars can override them (useful on Netlify).
 export const config = {
   surveyLink: process.env.SURVEY_LINK || raw.surveyLink,
   formId: process.env.GOOGLE_FORM_ID || raw.formId,

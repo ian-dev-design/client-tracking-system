@@ -71,7 +71,7 @@ This adds all tabs, headers, default email templates and interview guides. It ne
 Access is controlled by **one setting**: `ALLOWED_EMAILS`, a comma-separated list.
 
 - **Locally:** edit `ALLOWED_EMAILS` in `.env.local`, then restart `npm run dev`.
-- **After deploying to Vercel (later):** go to Project → Settings → Environment Variables, edit `ALLOWED_EMAILS`, then **Redeploy**.
+- **After deploying to Netlify (later):** go to Site configuration → Environment variables, edit `ALLOWED_EMAILS`, then Deploys → Trigger deploy → **Deploy site**.
 
 Removing someone locks them out on their next page load, even if they're still signed in. Anyone not on the list sees "You don't have access. Ask the owner to add you." Teammates never get access to the Sheet itself. Because the consent screen is **Internal**, only @berkeley.edu accounts can sign in at all.
 
@@ -138,7 +138,7 @@ After editing it:
 
 ## Turning on AI inside the app (optional, later)
 
-Add `ANTHROPIC_API_KEY=...` to `.env.local` (or to Vercel) and restart. Draft outreach is then personalized by Claude, survey takeaways are written on sync, and transcripts are extracted on upload. No code changes needed: see [`lib/ai.ts`](lib/ai.ts).
+Add `ANTHROPIC_API_KEY=...` to `.env.local` (or to Netlify's environment variables) and restart. Draft outreach is then personalized by Claude, survey takeaways are written on sync, and transcripts are extracted on upload. No code changes needed: see [`lib/ai.ts`](lib/ai.ts).
 
 ## How the code is organized
 
@@ -157,8 +157,9 @@ apps-script/     one-time Sheet+Form setup; form-submit ping for after deploy
 
 ## Deploying (not yet)
 
-The code is deploy-ready for Vercel, but **don't deploy until the owner asks**. When you do:
-- add every `.env.local` value as a Vercel environment variable
-- add `https://<your-app>.vercel.app/api/auth/callback/google` to the OAuth client
-- set `NEXTAUTH_URL` and `SURVEY_SYNC_SECRET`
-- install [`apps-script/form-sync.gs`](apps-script/form-sync.gs) on the Form for instant sync
+The code is ready for **Netlify** (free Starter plan), but **don't deploy until the owner asks**. Full click-by-click steps are in [`DEPLOY.md`](DEPLOY.md). In short:
+- `netlify.toml` holds the build settings; Netlify adds its Next.js runtime automatically
+- add the environment variables listed in `DEPLOY.md` in Netlify's site settings (never in git)
+- add `https://<your-site>.netlify.app` and `…/api/auth/callback/google` to the Google OAuth client, and set `NEXTAUTH_URL` to the site URL
+- the daily job (urgent-task emails + weekly digest) runs from the Netlify Scheduled Function in [`netlify/functions/daily.mts`](netlify/functions/daily.mts), which calls `/api/cron/daily` with `CRON_SECRET`
+- install [`apps-script/form-sync.gs`](apps-script/form-sync.gs) on the Form for instant survey sync

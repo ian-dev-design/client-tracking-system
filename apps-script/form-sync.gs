@@ -7,7 +7,7 @@
  * Triggers (clock icon) → Add trigger → onSubmit, "From form", "On form submit".
  * SYNC_SECRET must equal SURVEY_SYNC_SECRET in the app's environment variables.
  */
-var APP_URL = 'https://YOUR-APP.vercel.app';
+var APP_URL = 'https://YOUR-SITE.netlify.app';
 var SYNC_SECRET = 'same-long-random-string-as-SURVEY_SYNC_SECRET';
 
 function onSubmit() {

@@ -24,6 +24,7 @@ A small CRM: Google Sheet backend, Next.js web app for the team, Claude Code com
 - Slash commands in `.claude/commands/` run `npm run crm -- <command>`; run `npm run crm -- help` for the list.
 - `lib/ai.ts` is optional: features turn on only when `ANTHROPIC_API_KEY` is set. Without it, AI work happens through the Claude Code commands.
 - Who we sell to lives in `config.json` → `targetCustomer`, `onboardingSteps`, `retentionSignals` (read via `lib/target.ts`). Templates, survey, guides, and checklists are built from it in `lib/defaults.ts`. Keep UI labels generic ("contact", "client", "organization").
-- Secrets live only in `.env.local` (and later Vercel env vars). `config.json` holds non-secret IDs.
+- Hosting is Netlify (free Starter plan), not Vercel. Build settings in `netlify.toml`; the daily job (urgent tasks + weekly digest) is the Netlify Scheduled Function `netlify/functions/daily.mts`, which calls `/api/cron/daily` with `CRON_SECRET`. Steps in `DEPLOY.md`.
+- Secrets live only in `.env.local` (and Netlify's environment variables once deployed). `config.json` holds non-secret IDs.
 - While `EMAIL_TEST_REDIRECT` is set, every send (outreach and notifications) goes to that address only.
 - Team = `ALLOWED_EMAILS` (optionally `Name <email>`); tasks/clients store the teammate's name (`lib/team.ts`).

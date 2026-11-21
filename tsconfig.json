@@ -29,11 +29,13 @@
     }
   },
   "include": [
+    "**/*.mts",
     "**/*.ts",
     "**/*.tsx",
+    ".next-demo/types/**/*.ts",
     ".next/types/**/*.ts",
     "next-env.d.ts",
-    ".next-demo/types/**/*.ts"
+    ".next-demo/alt/types/**/*.ts"
   ],
   "exclude": [
     "node_modules",

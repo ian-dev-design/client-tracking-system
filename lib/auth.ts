@@ -10,9 +10,9 @@ import { team, teamEmails } from "@/lib/team";
 export const allowedEmails = teamEmails;
 export const isAllowed = (email?: string | null) => !!email && allowedEmails().includes(normEmail(email));
 
-/** Demo mode: no Google sign-in configured, local only, demo data. Never active on Vercel. */
+/** Demo mode: no Google sign-in configured, local only, demo data. Never active in a production build (Netlify or `next start`). */
 export const demoAuth = () =>
-  !process.env.GOOGLE_CLIENT_ID && process.env.DATA_BACKEND !== "sheets" && !process.env.VERCEL;
+  !process.env.GOOGLE_CLIENT_ID && process.env.DATA_BACKEND !== "sheets" && process.env.NODE_ENV !== "production";
 
 export async function refreshAccessToken(refreshToken: string) {
   const res = await fetch("https://oauth2.googleapis.com/token", {

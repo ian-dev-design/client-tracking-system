@@ -1,0 +1,13 @@
+# Netlify build settings. Netlify detects Next.js and adds its free Next.js runtime automatically.
+# Deploy steps: see DEPLOY.md. Secrets go in Netlify's site settings, never in this file.
+
+[build]
+  command = "npm run build"
+  publish = ".next"
+
+[build.environment]
+  NODE_VERSION = "22"
+
+# Scheduled functions (the daily job) live here. See netlify/functions/daily.mts.
+[functions]
+  directory = "netlify/functions"
