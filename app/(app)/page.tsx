@@ -3,7 +3,8 @@ import { loadAll } from "@/lib/crm";
 import { dashboardData } from "@/lib/dashboard";
 import { JOURNEY, journey } from "@/lib/journey";
 import { moneyShort } from "@/lib/target";
-import { Donut, StackedBar } from "@/components/charts";
+import { ConversionBar, Donut } from "@/components/charts";
+import { funnel } from "@/lib/insights";
 import { SyncNowButton } from "@/components/SurveySync";
 import { SectionHead } from "@/components/ui";
 
@@ -28,6 +29,7 @@ export default async function Dashboard() {
     d.health.yellow && `${d.health.yellow} needs attention`,
   ].filter(Boolean).join(", ").replace(/^(.+)$/, ", $1") || ", healthy";
   const pipeline = d.pipeline.filter((p) => p.value > 0); // no $0 stages
+  const conv = funnel(data, "all");
 
   return (
     <>
@@ -68,8 +70,11 @@ export default async function Dashboard() {
         {/* 2. Journey: the donut and the four stages as one block of navigation */}
         <section>
           <SectionHead title="Journey" href="/contacts" linkText="All contacts →" />
-          <div className="flex flex-col gap-6 sm:flex-row sm:items-center">
-            <Donut data={d.journeySplit} caption={`${d.total} people`} showLegend={false} />
+          <div className="flex flex-col gap-8 sm:flex-row sm:items-center">
+            {/* Visual 1 of 2: the donut opens Insights */}
+            <a href="/insights#clients" title="See it on Insights" className="shrink-0 transition-opacity hover:opacity-80">
+              <Donut data={d.journeySplit.map(({ href: _skip, ...slice }) => slice)} caption={`${d.total} people`} showLegend={false} />
+            </a>
             <ul className="min-w-0 flex-1 divide-y divide-line border-y border-line">
               {JOURNEY.map((j) => {
                 const people = d.journeyPeople[j.key];
@@ -101,17 +106,28 @@ export default async function Dashboard() {
           </p>
         </section>
 
-        {/* 3. Pipeline: one line and one thin bar */}
+        {/* 3. Conversion (visual 2 of 2, opens Insights), then the pipeline in plain numbers */}
         <section>
-          <SectionHead title="Pipeline" href="/board" linkText="Outreach →" />
-          <p className="text-2xl font-medium tracking-tight tabular-nums">
-            {moneyShort(d.pipelineTotal)} <span className="text-base font-normal text-muted">open</span>
-            <span className="mx-2 text-faint">·</span>
-            {moneyShort(d.wonTotal)} <span className="text-base font-normal text-muted">won</span>
-          </p>
-          <div className="mt-5">
-            {pipeline.length ? <StackedBar data={pipeline} format={moneyShort} />
-              : <p className="muted">No deal values yet. Add one from a contact&apos;s <b>Edit deal</b>.</p>}
+          <SectionHead title="Conversion" href="/insights" linkText="Insights →" />
+          {conv.enough ? (
+            <Link href="/insights#outreach" className="block transition-opacity hover:opacity-80" title="See the full funnel on Insights">
+              <p className="mb-4 text-sm text-muted">Of <span className="font-semibold text-ink">{conv.total}</span> people contacted (all time), the share who reached each step</p>
+              <ConversionBar steps={conv.steps} color="#2f6b4f" />
+            </Link>
+          ) : <p className="muted">Conversion shows once a few people have been contacted.</p>}
+
+          <div className="mt-12">
+            <SectionHead title="Pipeline" href="/board" linkText="Outreach →" />
+            <p className="text-2xl font-medium tracking-tight tabular-nums">
+              {moneyShort(d.pipelineTotal)} <span className="text-base font-normal text-muted">open</span>
+              <span className="mx-2 text-faint">·</span>
+              {moneyShort(d.wonTotal)} <span className="text-base font-normal text-muted">won</span>
+            </p>
+            {pipeline.length ? (
+              <p className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted">
+                {pipeline.map((p) => <Link key={p.label} href={p.href || "/board"} className="hover:text-ink hover:underline">{p.label} <span className="tabular-nums text-ink">{moneyShort(p.value)}</span></Link>)}
+              </p>
+            ) : <p className="muted mt-3">No deal values yet. Add one from a contact&apos;s <b>Edit deal</b>.</p>}
           </div>
         </section>
       </div>

@@ -194,3 +194,31 @@ export function MonthBars({ months, color }: { months: { label: string; churned:
     </div>
   );
 }
+
+/**
+ * One bar for the whole funnel: the full track is everyone contacted; each later step is a darker layer
+ * as wide as the share who reached it. Step names and shares are listed underneath.
+ */
+export function ConversionBar({ steps, color }: { steps: FunnelRow[]; color: string }) {
+  const later = steps.slice(1);
+  return (
+    <div>
+      <div className="relative h-3 w-full" style={{ background: `color-mix(in srgb, ${color} 18%, #ffffff)` }} role="img"
+        aria-label={later.map((s) => `${s.label} ${s.pctStart}%`).join(", ")}>
+        {later.map((s, i) => (
+          <span key={s.label} className="absolute inset-y-0 left-0 block"
+            style={{ width: `${s.pctStart}%`, background: `color-mix(in srgb, ${color} ${Math.round(35 + (i / Math.max(1, later.length - 1)) * 65)}%, #ffffff)` }} />
+        ))}
+      </div>
+      <ul className="mt-4 grid grid-cols-2 gap-x-8 gap-y-2">
+        {later.map((s, i) => (
+          <li key={s.label} className="flex items-center gap-2 text-sm">
+            <span className="h-2.5 w-2.5 shrink-0" style={{ background: `color-mix(in srgb, ${color} ${Math.round(35 + (i / Math.max(1, later.length - 1)) * 65)}%, #ffffff)` }} />
+            <span className="text-ink">{s.label.replace(" / meeting", "")}</span>
+            <span className="text-xs tabular-nums text-faint">{s.pctStart}%</span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
