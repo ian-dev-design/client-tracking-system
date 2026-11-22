@@ -17,7 +17,7 @@ export default async function OutreachBoard({ searchParams }: { searchParams: Pr
       <PageHeader title="Outreach" stage="outreach">
         <Link href="/contacts/new" className="btn btn-primary">+ Add contact</Link>
       </PageHeader>
-      <FilterBar owners={owners(contacts)} show={owners(contacts).length > 1 ? ["type", "owner"] : ["type"]} />
+      <FilterBar owners={owners(contacts)} show={owners(contacts).length > 1 ? ["owner"] : []} />
       {/* key forces a fresh board when filters or data change */}
       <Board key={JSON.stringify(cards)} stages={[...BOARD_STAGES]} field="stage" track="outreach"
         initial={cards} showOwner={owners(contacts).length > 1} testRedirect={process.env.EMAIL_TEST_REDIRECT} />

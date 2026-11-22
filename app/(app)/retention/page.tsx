@@ -1,9 +1,8 @@
 import Link from "next/link";
 import { loadAll } from "@/lib/crm";
-import { retention } from "@/lib/insights";
 import { HEALTH_COLUMNS, RENEWAL_COLUMNS, clientHealth, daysToRenewal, nextStep, renewalBucket, renewalValue, renewedRecently } from "@/lib/retention";
 import { retentionUrgency } from "@/lib/urgency";
-import { daysSince, parseStamp } from "@/lib/util";
+import { daysSince } from "@/lib/util";
 import { filterContacts, owners, params } from "@/lib/views";
 import { FilterBar } from "@/components/FilterBar";
 import { RetentionBoard, type RetentionCardView } from "@/components/RetentionBoard";
@@ -35,12 +34,6 @@ export default async function Retention({ searchParams }: { searchParams: Promis
     };
   }).sort((a, b) => (a.daysToRenewal ?? 9999) - (b.daysToRenewal ?? 9999));
 
-  // The slim line: 12-month retention, churn this calendar year, renewals coming up.
-  const r12 = retention(data, "12m");
-  const year = new Date().getFullYear();
-  const churnedThisYear = contacts.filter((c) => c.stage === "Churned / Lost" && wasClient(c.id) && parseStamp(churnedAt(c)).getFullYear() === year).length;
-  const active = contacts.filter((c) => c.stage === "Active / Retention");
-  const renewSoon = active.filter((c) => ["30", "overdue"].includes(renewalBucket(c))).length;
 
   const columns = tab === "health"
     ? HEALTH_COLUMNS.map((h) => ({ key: h.key, label: h.label, dot: h.dot, hint: h.key === "green" ? "No healthy clients right now." : "Nobody here. Good." }))
@@ -50,12 +43,6 @@ export default async function Retention({ searchParams }: { searchParams: Promis
   return (
     <>
       <PageHeader title="Retention" stage="retention" />
-      {/* One plain line of numbers; the charts are on the Insights page. */}
-      <p className="-mt-2 mb-6 text-sm text-ink">
-        Retention rate <b>{r12.rate === null ? "—" : `${r12.rate}%`}</b>
-        <span className="mx-2 text-faint">·</span>{churnedThisYear} churned this year
-        <span className="mx-2 text-faint">·</span><span className={renewSoon ? "font-medium text-retention-ink" : ""}>{renewSoon} renewal{renewSoon === 1 ? "" : "s"} in the next 30 days</span>
-      </p>
 
       <nav className="mb-6 flex gap-6 border-b border-line" aria-label="Retention views">
         {TABS.map((t) => (

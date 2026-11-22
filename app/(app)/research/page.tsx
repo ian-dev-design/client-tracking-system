@@ -11,7 +11,7 @@ export default async function ResearchBoard({ searchParams }: { searchParams: Pr
   const cards = filterContacts(people, f).map((c) => boardCard(c, interactions, interviews, drafts, "research_status", tasks));
   return (
     <>
-      <FilterBar owners={owners(contacts)} show={owners(contacts).length > 1 ? ["type", "owner"] : ["type"]} />
+      <FilterBar owners={owners(contacts)} show={owners(contacts).length > 1 ? ["owner"] : []} />
       <Board key={JSON.stringify(cards)} stages={[...RESEARCH_STATUSES]} field="research_status" track="research"
         initial={cards} showOwner={owners(contacts).length > 1} testRedirect={process.env.EMAIL_TEST_REDIRECT} />
     </>
