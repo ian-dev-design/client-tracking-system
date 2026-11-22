@@ -7,6 +7,9 @@
 
 [build.environment]
   NODE_VERSION = "22"
+  # DATA_BACKEND ("sheets") isn't a secret, and the word appears all through the code,
+  # so Netlify's secret scan shouldn't treat it as one. Real secrets are still scanned.
+  SECRETS_SCAN_OMIT_KEYS = "DATA_BACKEND,OWNER_NAME"
 
 # Scheduled functions (the daily job) live here. See netlify/functions/daily.mts.
 [functions]
